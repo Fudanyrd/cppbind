@@ -14,7 +14,8 @@ if(BUILD_UNITTESTS)
     target_link_libraries(${testname} cppbind gtest gmock_main fini ${PYTHON_LIBRARY})
 
     add_dependencies(run-tests run-${testname})
-    add_custom_target("run-${testname}" COMMAND "${CMAKE_CURRENT_BINARY_DIR}/${testname}")
+    add_custom_target("run-${testname}" COMMAND "${CMAKE_CURRENT_BINARY_DIR}/${testname}"
+                      DEPENDS ${testname})
     set_target_properties(${testname}
             PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"

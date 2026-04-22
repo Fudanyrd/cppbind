@@ -44,9 +44,10 @@ public:
   }
 
   Object &operator=(Object &&other) noexcept {
-    if (&other != this) {
-      this->dec_ref();
+    if (&other == this) {
+      return *this;
     }
+    dec_ref();
     ptr = other.ptr;
     other.ptr = nullptr;
     return *this;
@@ -62,6 +63,8 @@ public:
 
   PyObject *__str__() const { return PyObject_Str(ptr); }
   PyObject *__repr__() const { return PyObject_Repr(ptr); }
+
+  Py_ssize_t ref_count(void) const { return Py_REFCNT(ptr); }
 };
 
 } /* namespace cppbind */

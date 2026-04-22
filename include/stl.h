@@ -25,6 +25,10 @@ namespace cppbind {
 
 std::ostream &operator<<(std::ostream &os, PyObject *obj);
 
+inline std::ostream &operator<<(std::ostream &os, const Object &obj) {
+  return os << obj.ptr;
 }
+
+} // namespace cppbind
 
 #endif /* __STL_H__ */

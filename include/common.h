@@ -38,26 +38,37 @@ constexpr char version[] = "0.0.1";
 
 #define instantiate_type_checker(checker_name, ty, ret)                        \
   template <> constexpr bool checker_name<ty>(void) { return (ret); }          \
-/* end of checker */
+  /* end of checker */
 
-/* Interger types check */
-template <typename _Tp> constexpr bool is_integer_ty(void) { return false; }
-
-#define integer_types(X)                                                       \
-  X(int8_t)                                                                    \
-  X(int16_t)                                                                   \
-  X(int32_t) X(int64_t) X(uint8_t) X(uint16_t) X(uint32_t) X(uint64_t)
-#define instantiate_integer_checker(ty)                                        \
-  instantiate_type_checker(is_integer_ty, ty, true)
-// clang-format off
-integer_types( instantiate_integer_checker )
-    // clang-format on
-
-    /* Floating point types check */
-    template <typename _Tp>
-    constexpr bool is_fp_ty(void) {
+template <typename _Tp> constexpr bool is_signed_integer_ty(void) {
   return false;
 }
+#define signed_integer_types(X) X(int8_t) X(int16_t) X(int32_t) X(int64_t)
+#define instantiate_signed_integer_checker(ty)                                 \
+  instantiate_type_checker(is_signed_integer_ty, ty, true)
+// clang-format off
+signed_integer_types( instantiate_signed_integer_checker )
+    // clang-format on
+
+    template <typename _Tp>
+    constexpr bool is_unsigned_integer_ty(void) {
+  return false;
+}
+#define unsigned_integer_types(X) X(uint8_t) X(uint16_t) X(uint32_t) X(uint64_t)
+#define instantiate_unsigned_integer_checker(ty)                               \
+  instantiate_type_checker(is_signed_integer_ty, ty, false)
+// clang-format off
+unsigned_integer_types( instantiate_unsigned_integer_checker )
+    // clang-format on
+
+    /* Interger types check */
+    template <typename _Tp>
+    constexpr bool is_integer_ty(void) {
+  return is_signed_integer_ty<_Tp>() || is_unsigned_integer_ty<_Tp>();
+}
+
+/* Floating point types check */
+template <typename _Tp> constexpr bool is_fp_ty(void) { return false; }
 
 #define floating_point_types(X) X(float) X(double)
 #define instantiate_fp_checker(ty) instantiate_type_checker(is_fp_ty, ty, true)
