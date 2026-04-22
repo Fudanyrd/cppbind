@@ -18,7 +18,7 @@ public:
     other.inc_ref();
     ptr = other.ptr;
   }
-  Object(Object &&other) {
+  Object(Object &&other) noexcept {
     ptr = other.ptr;
     other.ptr = nullptr;
   }
@@ -43,7 +43,7 @@ public:
     return *this;
   }
 
-  Object &operator=(Object &&other) {
+  Object &operator=(Object &&other) noexcept {
     if (&other != this) {
       this->dec_ref();
     }
