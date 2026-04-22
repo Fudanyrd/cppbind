@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.d": "makefile",
+        ".clang-format": "yaml"
+    }
+}
