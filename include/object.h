@@ -74,7 +74,7 @@ public:
     }                                                                          \
     ptr = ret;                                                                 \
   }                                                                            \
-  void CONCAT(inplace_num_, op)(Object & other) {                              \
+  void CONCAT(inplace_num_, op)(const Object &other) {                         \
     CONCAT(inplace_num_, op)(other.ptr);                                       \
   }
 

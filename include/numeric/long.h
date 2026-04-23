@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "numeric/macro.h"
 #include "object.h"
 
 namespace cppbind {
@@ -48,9 +49,9 @@ struct Long {
 #define convert_to(cpp_ty, converter)                                          \
   operator cpp_ty() const { return CONCAT(PyLong_As, converter)(obj.ptr); }
 
-                      convert_to(long, Long) convert_to(long long, LongLong)
-                          convert_to(unsigned long, UnsignedLong)
-                              convert_to(unsigned long long, UnsignedLongLong)
+                      convert_to(long long, LongLong) convert_to(long, Long)
+                          convert_to(unsigned long long, UnsignedLongLong)
+                              convert_to(unsigned long, UnsignedLong)
 
 #undef convert_to
 
@@ -60,14 +61,26 @@ struct Long {
   }
   const Object &object() const { return obj; }
 
-  Long &operator+=(const Long &other) {
-    obj.ptr = PyNumber_InPlaceAdd(obj.ptr, other.obj.ptr);
+  Long &operator/=(const Long &other) {
+    PyObject *result = PyNumber_FloorDivide(obj.ptr, other.obj.ptr);
+    obj = Object(result);
     return *this;
   }
+
+  gen_inplace_op_impl(Long, +=, inplace_num_Add);
+  gen_inplace_op_impl(Long, -=, inplace_num_Subtract);
+  gen_inplace_op_impl(Long, *=, inplace_num_Multiply);
+  gen_inplace_op_impl(Long, %=, inplace_num_Remainder);
+  gen_inplace_op_impl(Long, <<=, inplace_num_Lshift);
+  gen_inplace_op_impl(Long, >>=, inplace_num_Rshift);
+  gen_inplace_op_impl(Long, &=, inplace_num_And);
+  gen_inplace_op_impl(Long, ^=, inplace_num_Xor);
+  gen_inplace_op_impl(Long, |=, inplace_num_Or);
 };
 
 using Integer = Long;
 
 } /* namespace cppbind */
 
+#undef gen_inplace_op_impl
 #endif /* __NUMERIC_LONG_H__ */
