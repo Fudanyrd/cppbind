@@ -106,6 +106,13 @@ public:
   FOREACH(num_inplace_op)
 #undef FOREACH
 #undef num_inplace_op
+
+  /* Transfer ownership back to a PyObject pointer. */
+  PyObject *unwrap(void) {
+    auto *ret = this->ptr;
+    ptr = nullptr;
+    return ret;
+  }
 };
 
 } /* namespace cppbind */
