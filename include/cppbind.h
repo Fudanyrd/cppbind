@@ -4,6 +4,7 @@
 #include "common.h"
 #include "object.h"
 
+#include "container/dict.h"
 #include "container/list.h"
 #include "container/tuple.h"
 
