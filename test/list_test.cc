@@ -58,4 +58,24 @@ TEST(List, RefCount) {
   }
 }
 
+TEST(List, DieEarly) {
+  Long integer(0x12345678);
+  Object &obj = integer.object();
+  auto refcnt = obj.ref_count();
+
+  {
+    List lst;
+    lst.append(obj);
+  }
+  ASSERT_EQ(refcnt, obj.ref_count());
+
+  {
+    List lst;
+    for (int i = 0; i < 4; i++) {
+      lst.append(obj);
+    }
+  }
+  ASSERT_EQ(refcnt, obj.ref_count());
+}
+
 } /* namespace cppbind */

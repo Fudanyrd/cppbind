@@ -6,9 +6,10 @@ set -e
 test -n "$CC"
 test -n "$CXX"
 
-mkdir build && cd build
+mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_UNITTESTS=TRUE \
+  -DENABLE_ASSERTION=TRUE \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX"
 
