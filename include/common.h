@@ -12,6 +12,13 @@
 #error "must use C++ compiler"
 #endif /* defined __cplusplus */
 
+#define __TO_STR(x) #x
+#define STR(x) __TO_STR(x)
+#if !defined __CONCAT
+#define __CONCAT(a, b) a##b
+#endif /* !defined __CONCAT */
+#define CONCAT(a, b) __CONCAT(a, b)
+
 #if !defined __static_assert
 #define __static_assert(const_cond)                                            \
   do {                                                                         \

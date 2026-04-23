@@ -8,13 +8,6 @@
 #include "common.h"
 #include "object.h"
 
-#define __TO_STR(x) #x
-#define STR(x) __TO_STR(x)
-#if !defined __CONCAT
-#define __CONCAT(a, b) a##b
-#endif /* !defined __CONCAT */
-#define CONCAT(a, b) __CONCAT(a, b)
-
 namespace cppbind {
 
 struct Long {
@@ -77,8 +70,4 @@ using Integer = Long;
 
 } /* namespace cppbind */
 
-#undef __TO_STR
-#undef STR
-#undef __CONCAT
-#undef CONCAT
 #endif /* __NUMERIC_LONG_H__ */

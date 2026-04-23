@@ -83,4 +83,22 @@ TEST(Object, Move) {
   }
 }
 
+TEST(Object, InplaceNumOp) {
+  PyObject *one = PyLong_FromLong(1);
+  PyObject *two = PyLong_FromLong(2);
+  if (likely(one && two)) {
+    Object guard1(one);
+    Object guard2(two);
+    auto refcnt = guard2.ref_count();
+    Object resguard = guard2;
+
+    /* will generate a new (float) object. */
+    resguard.inplace_num_TrueDivide(one);
+    ASSERT_TRUE(resguard.ptr != guard2.ptr);
+    ASSERT_EQ(guard2.ref_count(), refcnt);
+  } else {
+    FAIL() << "Failed to create long objects.";
+  }
+}
+
 } /* namespace cppbind */

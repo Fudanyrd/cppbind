@@ -65,6 +65,47 @@ public:
   PyObject *__repr__() const { return PyObject_Repr(ptr); }
 
   Py_ssize_t ref_count(void) const { return Py_REFCNT(ptr); }
+
+#define num_inplace_op(op)                                                     \
+  void CONCAT(inplace_num_, op)(PyObject * other) {                            \
+    PyObject *ret = CONCAT(PyNumber_InPlace, op)(ptr, other);                  \
+    if (ret != ptr) {                                                          \
+      dec_ref();                                                               \
+    }                                                                          \
+    ptr = ret;                                                                 \
+  }                                                                            \
+  void CONCAT(inplace_num_, op)(Object & other) {                              \
+    CONCAT(inplace_num_, op)(other.ptr);                                       \
+  }
+
+  void inplace_num_power(PyObject *other, PyObject *modulo) {
+    PyObject *ret = PyNumber_InPlacePower(ptr, other, modulo);
+    if (ret != ptr) {
+      dec_ref();
+    }
+    ptr = ret;
+  }
+  void inplace_num_power(Object &other, Object &modulo) {
+    inplace_num_power(other.ptr, modulo.ptr);
+  }
+
+#define FOREACH(X)                                                             \
+  X(Add)                                                                       \
+  X(Subtract)                                                                  \
+  X(Multiply)                                                                  \
+  X(FloorDivide)                                                               \
+  X(TrueDivide)                                                                \
+  X(Remainder)                                                                 \
+  X(Lshift)                                                                    \
+  X(Rshift)                                                                    \
+  X(And)                                                                       \
+  X(Xor)                                                                       \
+  X(Or)
+
+  /* Python number in-place operations. */
+  FOREACH(num_inplace_op)
+#undef FOREACH
+#undef num_inplace_op
 };
 
 } /* namespace cppbind */
