@@ -18,6 +18,11 @@ template <> constexpr int CFunction_flags<PyCArgsFunction>(void) {
   return METH_VARARGS;
 }
 
+template <> constexpr int CFunction_flags<PyCFunctionWithKeywords>(void) {
+  return METH_KEYWORDS;
+}
+
+#pragma GCC diagnostic ignored "-Wpedantic"
 #define gen_PyMethodDef(fn)                                                    \
   (PyMethodDef) {                                                              \
     #fn, (PyCFunction)fn, cppbind::CFunction_flags<decltype(&fn)>(), nullptr   \

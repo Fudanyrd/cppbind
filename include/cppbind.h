@@ -5,6 +5,7 @@
 #include "object.h"
 
 #include "container/list.h"
+#include "container/tuple.h"
 
 #include "numeric/long.h"
 
