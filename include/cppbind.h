@@ -4,6 +4,10 @@
 #include "common.h"
 #include "object.h"
 
+#include "container/list.h"
+
 #include "numeric/long.h"
+
+#include "package/invoke.h"
 
 #endif /* __CPPBIND_H__ */

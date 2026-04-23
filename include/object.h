@@ -113,6 +113,9 @@ public:
     ptr = nullptr;
     return ret;
   }
+
+  Object &object() { return *this; }
+  const Object &object() const { return *this; }
 };
 
 } /* namespace cppbind */

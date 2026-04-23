@@ -19,6 +19,13 @@
 #endif /* !defined __CONCAT */
 #define CONCAT(a, b) __CONCAT(a, b)
 
+#ifdef _GLIBCXX_ASSERTIONS
+#include <cassert>
+#define cppbind_assert(cond) assert(cond)
+#else
+#define cppbind_assert(cond) ((void)0)
+#endif /* _GLIBCXX_ASSERTIONS */
+
 #if !defined __static_assert
 #define __static_assert(const_cond)                                            \
   do {                                                                         \

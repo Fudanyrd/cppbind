@@ -29,6 +29,11 @@ inline std::ostream &operator<<(std::ostream &os, const Object &obj) {
   return os << obj.ptr;
 }
 
+template <typename _Object_Ty>
+inline std::ostream &operator<<(std::ostream &os, const _Object_Ty &obj) {
+  return os << obj.object();
+}
+
 } // namespace cppbind
 
 #endif /* __STL_H__ */

@@ -15,7 +15,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "-Wpedantic -Wall")
 
 # XXX: Read these options.
 option(BUILD_UNITTESTS "Build the unittest runner." TRUE)
+option(ENABLE_ASSERTION "Enable assertion checks." FALSE)
 
+if(ENABLE_ASSERTION)
+  add_definitions(-D_GLIBCXX_ASSERTIONS)
+endif()
 
 # only system dependency is python3-dev
 find_package(Python3)
