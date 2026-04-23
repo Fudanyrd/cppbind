@@ -15,6 +15,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-Wpedantic -Wall")
 
 # XXX: Read these options.
 option(BUILD_UNITTESTS "Build the unittest runner." TRUE)
+option(BUILD_EXAMPLES "Build the example programs." TRUE)
 option(ENABLE_ASSERTION "Enable assertion checks." FALSE)
 
 if(ENABLE_ASSERTION)
@@ -63,3 +64,7 @@ if(BUILD_UNITTESTS)
 else()
 endif()
 
+if(BUILD_EXAMPLES)
+  add_subdirectory(example)
+else()
+endif()

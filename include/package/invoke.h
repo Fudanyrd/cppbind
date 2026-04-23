@@ -10,6 +10,11 @@
 extern "C" {
 typedef PyObject (*PyCArgsFunction)(PyObject *self, PyObject *const *args,
                                     Py_ssize_t nargs);
+
+typedef PyObject *(*PyCArgsFunctionWithKeywords)(PyObject *self,
+                                                 PyObject *const *args,
+                                                 Py_ssize_t nargs,
+                                                 PyObject *kwargs);
 }
 
 namespace cppbind {

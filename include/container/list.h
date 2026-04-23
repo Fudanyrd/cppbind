@@ -15,6 +15,7 @@ public:
   Object obj;
 
   List(void) : obj(PyList_New(0)) {}
+  List(const Object &other) : obj(other) {}
 
   template <typename... _Objects>
   List(_Objects &...objs) : obj(PyList_New(sizeof...(_Objects))) {

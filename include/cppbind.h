@@ -8,6 +8,8 @@
 
 #include "numeric/long.h"
 
+#include "package/func.h"
 #include "package/invoke.h"
+#include "package/mod.h"
 
 #endif /* __CPPBIND_H__ */
