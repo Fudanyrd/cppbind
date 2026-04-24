@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-set -e
+set -ex
 
 # check that CC and CXX are set
 test -n "$CC"

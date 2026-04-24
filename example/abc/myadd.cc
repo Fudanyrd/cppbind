@@ -3,13 +3,13 @@
 #include <cppbind.h>
 
 using cppbind::List;
-using cppbind::Tuple;
 using cppbind::Long;
 using cppbind::Object;
+using cppbind::Tuple;
 
 extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&myadd)>());
-  assert(PyTuple_Check(args));
+  assert(args && PyTuple_Check(args));
   Tuple list{Object{args}};
   assert(list.size() == 2);
   Long a(list[0].ptr), b(list[1].ptr);
@@ -19,7 +19,7 @@ extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
 
 extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&mysum)>());
-  assert(PyTuple_Check(args));
+  assert(args && PyTuple_Check(args));
   Tuple list{Object{args}};
   Long sum(0);
   for (Py_ssize_t i = 0; i < list.size(); i++) {
@@ -28,7 +28,6 @@ extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   }
   return sum.object().unwrap();
 }
-
 
 gen_modinit_fn_from_fns(/* name */ myabc, nullptr, nullptr, nullptr,
                         gen_PyMethodDef_doc(myadd,

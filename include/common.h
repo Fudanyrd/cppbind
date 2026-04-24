@@ -54,7 +54,16 @@ constexpr char version[] = "0.0.1";
   template <> constexpr bool checker_name<ty>(void) { return (ret); }          \
   /* end of checker */
 
-template <typename _Tp> constexpr bool is_signed_integer_ty(void) {
+template <typename _Tp> constexpr bool is_char_ty(void) { return false; }
+#define char_types(X) X(signed char) X(unsigned char) X(char16_t) X(char32_t)
+#define instantiate_char_checker(ty)                                           \
+  instantiate_type_checker(is_char_ty, ty, true)
+// clang-format off
+char_types( instantiate_char_checker )
+    // clang-format on
+
+    template <typename _Tp>
+    constexpr bool is_signed_integer_ty(void) {
   return false;
 }
 #define signed_integer_types(X) X(int8_t) X(int16_t) X(int32_t) X(int64_t)
