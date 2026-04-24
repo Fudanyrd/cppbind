@@ -60,8 +60,17 @@ extern "C" PyObject *len_args_kwargs(PyObject *self, PyObject *const *args,
   __static_assert(cppbind::CFunction_flags<decltype(&len_args_kwargs)>());
 
   Long len_args(arglen);
-  assert(kwargs && PyDict_Check(kwargs));
-  Long len_kwargs(PyDict_Size(kwargs));
+  long kwarg_size = 0;
+  if (kwargs) {
+    if (PyDict_Check(kwargs)) {
+      kwarg_size = PyDict_Size(kwargs);
+    } else if (PyTuple_Check(kwargs)) {
+      kwarg_size = PyTuple_Size(kwargs);
+    } else {
+      cppbind_assert(0 && "kwargs is not dict or tuple");
+    }
+  }
+  Long len_kwargs(kwarg_size);
 
   Tuple ret{len_args.object(), len_kwargs.object()};
   return ret.object().unwrap();

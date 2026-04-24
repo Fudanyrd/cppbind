@@ -19,6 +19,12 @@ def test_kwarg_names():
     assert kwarg_names(None, a = 1, b = 2) == ['a', 'b']
     assert kwarg_names(None, b = 2, a = 1) == ['b', 'a']
 
+    d = {
+        "a": 1,
+        "b": 2,
+    }
+    assert list(d.keys()) == kwarg_names(d, **d)
+
 
 def test_sum():
     assert mysum(1, 2, 3) == 6
@@ -52,4 +58,4 @@ if __name__ == '__main__':
     test_kwarg_names()
     test_sum()
     test_sum_vec()
-    # test_len_args_kwargs()
+    test_len_args_kwargs()
