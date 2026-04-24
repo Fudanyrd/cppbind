@@ -1,5 +1,7 @@
 from myabc import myadd as add
-from myabc import mysum
+from myabc import mysum, mysum_vec # fastcall
+from myabc import kwarg_names
+from myabc import len_args_kwargs
 
 def test_add():
     assert add(1, 2) == 3
@@ -7,6 +9,16 @@ def test_add():
     assert add(0, 0) == 0
 
     print('1 + 2 =', add(1, 2))
+
+
+def test_kwarg_names():
+    print(kwarg_names.__doc__)
+    assert kwarg_names(1, 2) == []
+    assert kwarg_names() == []
+
+    assert kwarg_names(None, a = 1, b = 2) == ['a', 'b']
+    assert kwarg_names(None, b = 2, a = 1) == ['b', 'a']
+
 
 def test_sum():
     assert mysum(1, 2, 3) == 6
@@ -18,6 +30,26 @@ def test_sum():
 
     print('sum(1, 2, 3) =', mysum(1, 2, 3))
 
+
+def test_sum_vec():
+    assert mysum_vec(1, 2, 3) == 6
+    assert mysum_vec(-1, 1, 0) == 0
+
+    lst = [i for i in range(5)]
+    assert mysum_vec(*lst) == sum(lst)
+    del lst
+
+
+def test_len_args_kwargs():
+    assert len_args_kwargs() == (0, 0)
+    assert len_args_kwargs(1, 2) == (2, 0)
+    assert len_args_kwargs(a = 1, b = 2) == (0, 2)
+    assert len_args_kwargs(1, 2, a = 1, b = 2) == (2, 2)
+
+
 if __name__ == '__main__':
     test_add()
+    test_kwarg_names()
     test_sum()
+    test_sum_vec()
+    # test_len_args_kwargs()

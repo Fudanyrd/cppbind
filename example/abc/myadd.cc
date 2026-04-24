@@ -29,8 +29,50 @@ extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   return sum.object().unwrap();
 }
 
-gen_modinit_fn_from_fns(/* name */ myabc, nullptr, nullptr, nullptr,
-                        gen_PyMethodDef_doc(myadd,
-                                            ":returns: sum of two integers"),
-                        gen_PyMethodDef_doc(mysum,
-                                            ":returns: sum of all integers"));
+extern "C" PyObject *mysum_vec(PyObject *self, PyObject *const *args,
+                               Py_ssize_t arglen) {
+  __static_assert(cppbind::CFunction_flags<decltype(&mysum_vec)>());
+  Long sum(0);
+  for (Py_ssize_t i = 0; i < arglen; i++) {
+    Long a(args[i]);
+    sum += a;
+  }
+  return sum.object().unwrap();
+}
+
+extern "C" PyObject *kwarg_names(PyObject *self, PyObject *args,
+                                 PyObject *kwargs) {
+  __static_assert(cppbind::CFunction_flags<decltype(&kwarg_names)>());
+
+  if (kwargs && PyDict_Check(kwargs)) {
+  } else {
+    List empty;
+    return empty.object().unwrap();
+  }
+
+  Object ret{PyDict_Keys(kwargs)};
+  return ret.object().unwrap();
+}
+
+/* Returns a tuple of `(len(args), len(kwargs))`. */
+extern "C" PyObject *len_args_kwargs(PyObject *self, PyObject *const *args,
+                                     Py_ssize_t arglen, PyObject *kwargs) {
+  __static_assert(cppbind::CFunction_flags<decltype(&len_args_kwargs)>());
+
+  Long len_args(arglen);
+  assert(kwargs && PyDict_Check(kwargs));
+  Long len_kwargs(PyDict_Size(kwargs));
+
+  Tuple ret{len_args.object(), len_kwargs.object()};
+  return ret.object().unwrap();
+}
+
+gen_modinit_fn_from_fns(
+    /* name */ myabc, nullptr, nullptr, nullptr,
+    gen_PyMethodDef_doc(myadd, ":returns: sum of two integers"),
+    gen_PyMethodDef_doc(mysum, ":returns: sum of all integers"),
+    gen_PyMethodDef_doc(mysum_vec, ":returns: sum of all integers"),
+    gen_PyMethodDef_doc(kwarg_names,
+                        ":returns: a list of name of each kw argument."),
+    gen_PyMethodDef_doc(len_args_kwargs,
+                        ":returns: a tuple of `(len(args), len(kwargs))`."))

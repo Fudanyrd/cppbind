@@ -19,7 +19,15 @@ template <> constexpr int CFunction_flags<PyCArgsFunction>(void) {
 }
 
 template <> constexpr int CFunction_flags<PyCFunctionWithKeywords>(void) {
-  return METH_KEYWORDS;
+  return METH_KEYWORDS | METH_VARARGS;
+}
+
+template <> constexpr int CFunction_flags<PyCFunctionVec>(void) {
+  return METH_FASTCALL;
+}
+
+template <> constexpr int CFunction_flags<PyCFunctionVecWithKeywords>(void) {
+  return METH_FASTCALL | METH_KEYWORDS;
 }
 
 #pragma GCC diagnostic ignored "-Wpedantic"

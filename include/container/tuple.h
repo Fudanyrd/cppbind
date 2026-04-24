@@ -36,6 +36,9 @@ public:
 
   Py_ssize_t size(void) const { return PyTuple_Size(obj.ptr); }
   Py_ssize_t __len__(void) const { return size(); }
+
+  Object &object() { return this->obj; }
+  const Object &object() const { return this->obj; }
 };
 
 } /* namespace cppbind */

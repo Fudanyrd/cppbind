@@ -15,6 +15,12 @@ typedef PyObject *(*PyCArgsFunctionWithKeywords)(PyObject *self,
                                                  PyObject *const *args,
                                                  Py_ssize_t nargs,
                                                  PyObject *kwargs);
+
+/* vector call. */
+typedef PyObject *(*PyCFunctionVec)(PyObject *, PyObject *const *, Py_ssize_t);
+
+typedef PyObject *(*PyCFunctionVecWithKeywords)(PyObject *, PyObject *const *,
+                                                Py_ssize_t, PyObject *);
 }
 
 namespace cppbind {
