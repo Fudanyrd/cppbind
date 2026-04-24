@@ -11,7 +11,37 @@ private:
     return &obj.object();
   }
 
+  static Object getitem(PyObject *list, Py_ssize_t index) {
+    auto ret = Object(PyList_GetItem(list, index));
+    cppbind_assert(ret.ptr != nullptr);
+    ret.inc_ref(); /* give the object a reference.  */
+    return ret;
+  }
+
+  static void setitem(PyObject *list, Py_ssize_t index, const Object &obj) {
+    int ret = PyList_SetItem(list, index, obj.ptr);
+    if (ret != 0) {
+      /* Clear `IndexError` */
+      PyErr_Clear();
+    }
+  }
+
 public:
+  /* Surrogate class for (Object &). */
+  struct ObjectRef {
+    PyObject *list;
+    Py_ssize_t idx;
+
+    ObjectRef(PyObject *list, Py_ssize_t index) : list(list), idx(index) {}
+
+    ObjectRef &operator=(const Object &obj) {
+      List::setitem(list, idx, obj);
+      return *this;
+    }
+
+    operator Object() const { return List::getitem(list, idx); }
+  };
+
   Object obj;
 
   List(void) : obj(PyList_New(0)) {}
@@ -38,12 +68,9 @@ public:
   Object &object() { return this->obj; }
   const Object &object() const { return this->obj; }
 
-  Object operator[](Py_ssize_t index) const {
-    auto ret = Object(PyList_GetItem(obj.ptr, index));
-    cppbind_assert(ret.ptr != nullptr);
-    ret.inc_ref(); /* give the object a reference.  */
-    return ret;
-  }
+  Object operator[](Py_ssize_t index) const { return getitem(obj.ptr, index); }
+
+  ObjectRef operator[](Py_ssize_t index) { return ObjectRef(obj.ptr, index); }
 };
 
 } /* namespace cppbind */

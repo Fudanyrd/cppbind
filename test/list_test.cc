@@ -20,6 +20,37 @@ TEST(List, Create) {
   }
 }
 
+TEST(List, GetAndSet) {
+  List list;
+  constexpr int len = 4;
+
+  {
+    Object none(Py_None);
+    none.inc_ref();
+    for (int i = 0; i < len; i++) {
+      list.append(none);
+    }
+  }
+
+#define VALUE_IDX(i) ((long)(i))
+
+  /* Set the list to certain values. */ {
+    for (int i = 0; i < len; i++) {
+      Object obj = Long(VALUE_IDX(i)).object();
+      list[i] = obj;
+    }
+  }
+
+  {
+    for (int i = 0; i < len; i++) {
+      Object obj = list[i];
+      Long actual{obj};
+      EXPECT_EQ(VALUE_IDX(i), (long)actual);
+    }
+  }
+#undef VALUE_IDX
+}
+
 TEST(List, Append) {
   List list;
   EXPECT_EQ(list.size(), 0);
@@ -76,6 +107,37 @@ TEST(List, DieEarly) {
     }
   }
   ASSERT_EQ(refcnt, obj.ref_count());
+}
+
+TEST(List, SameObjInList) {
+  PyObject *obj = Long(0x12345678).object().unwrap();
+  const auto refcnt = Py_REFCNT(obj);
+  ASSERT_TRUE(refcnt > 0);
+
+  {
+    List list;
+    Object it(obj);
+    list.append(it);
+    list.append(it);
+    (void)it.unwrap();
+    ASSERT_EQ(list.size(), 2);
+    ASSERT_EQ(Py_REFCNT(obj), refcnt + 2);
+  }
+  ASSERT_EQ(Py_REFCNT(obj), refcnt);
+
+  /* append the same item to several lists. */
+  {
+    List l1, l2;
+    Object it(obj);
+    l1.append(it);
+    l2.append(it);
+    /* free the ownership taken by `it` */
+    (void)it.unwrap();
+    ASSERT_EQ(Py_REFCNT(obj), refcnt + 2);
+  }
+
+  /* Free the object. */
+  Py_DECREF(obj);
 }
 
 } /* namespace cppbind */

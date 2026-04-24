@@ -9,14 +9,14 @@ static void dput(Dict &d, long int k, long int v) {
   Object ko = Long(k).object();
   Object vo = Long(v).object();
 
-  d.__setitem__(ko, vo);
+  d[ko] = vo;
 }
 
 static bool dget(Dict &d, long int k, long int *v) {
   Object ko = Long(k).object();
   Object vo = d[ko];
   if (vo.ptr == Py_None) {
-      return false;
+    return false;
   }
   *v = static_cast<long int>(Long(vo));
   return true;
@@ -64,7 +64,7 @@ TEST(Dict, DictLifeTime) {
   Object k = Long(ki).object();
   const auto krefcnt = k.ref_count();
   {
-    Dict d; 
+    Dict d;
     d.__setitem__(k, value);
     ASSERT_EQ(value.ref_count(), vrefcnt + 1);
     ASSERT_EQ(k.ref_count(), krefcnt + 1);
@@ -73,7 +73,7 @@ TEST(Dict, DictLifeTime) {
   ASSERT_EQ(k.ref_count(), krefcnt);
 
   /* Try put the same kv twice. */ {
-    Dict d; 
+    Dict d;
     d.__setitem__(k, value);
     d.__setitem__(k, value);
     ASSERT_EQ(value.ref_count(), vrefcnt + 1);
@@ -85,7 +85,7 @@ TEST(Dict, DictLifeTime) {
   /* Try put the same kv into two dicts. */ do {
     Dict d1;
     Dict d2;
-    if (d1.object().ptr == d2.object().ptr) { 
+    if (d1.object().ptr == d2.object().ptr) {
       FAIL() << "Two dicts should not share the same underlying PyDictObject.";
     }
     d1.__setitem__(k, value);
