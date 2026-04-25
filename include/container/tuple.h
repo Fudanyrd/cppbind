@@ -29,7 +29,7 @@ public:
 
   Object operator[](Py_ssize_t index) const {
     auto ret = Object(PyTuple_GetItem(obj.ptr, index));
-    cppbind_assert(ret.ptr != nullptr);
+    cppbind_check_internal(ret.ptr != nullptr);
     ret.inc_ref(); /* give the object a reference.  */
     return ret;
   }

@@ -9,7 +9,7 @@ struct Dict {
 private:
   static void setitem(PyObject *dict, PyObject *key, const Object &value) {
     int ret = PyDict_SetItem(dict, key, value.ptr);
-    cppbind_assert(ret == 0 && "Failed to set item in dict.");
+    cppbind_check_internal(ret == 0 && "Failed to set item in dict.");
   }
 
   static Object getitem(PyObject *dict, PyObject *key,

@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "object.h"
+#include "traceback.h"
 
 #include "container/dict.h"
 #include "container/list.h"

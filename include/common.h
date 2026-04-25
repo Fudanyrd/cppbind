@@ -2,6 +2,8 @@
 #define __COMMON_H__ (1)
 
 #include <Python.h>
+#include <cassert>
+#include <setjmp.h>
 #include <stdint.h>
 
 #if defined __cplusplus
@@ -20,11 +22,16 @@
 #define CONCAT(a, b) __CONCAT(a, b)
 
 #ifdef _GLIBCXX_ASSERTIONS
-#include <cassert>
-#define cppbind_assert(cond) assert(cond)
+/*
+ * NOTE: do not use this.
+ * Use cppbind_assert for writing your own assertions.
+ */
+#define cppbind_check_internal(cond) assert(cond)
 #else
-#define cppbind_assert(cond) ((void)0)
+#define cppbind_check_internal(cond) ((void)0)
 #endif /* _GLIBCXX_ASSERTIONS */
+
+#define cppbind_assert(cond) assert(cond)
 
 #if !defined __static_assert
 #define __static_assert(const_cond)                                            \
@@ -102,6 +109,11 @@ floating_point_types( instantiate_fp_checker )
     template <typename _Tp>
     constexpr bool is_numeric_ty(void) {
   return is_integer_ty<_Tp>() || is_fp_ty<_Tp>();
+}
+
+template <typename InheritedTy, typename BaseTy> bool isa(const BaseTy &ref) {
+  const InheritedTy *ptr = dynamic_cast<const InheritedTy *>(&ref);
+  return ptr != nullptr;
 }
 
 } /* namespace cppbind */

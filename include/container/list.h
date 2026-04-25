@@ -13,7 +13,7 @@ private:
 
   static Object getitem(PyObject *list, Py_ssize_t index) {
     auto ret = Object(PyList_GetItem(list, index));
-    cppbind_assert(ret.ptr != nullptr);
+    cppbind_check_internal(ret.ptr != nullptr);
     ret.inc_ref(); /* give the object a reference.  */
     return ret;
   }

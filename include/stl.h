@@ -1,7 +1,9 @@
 #ifndef __STL_H__
 #define __STL_H__ (1)
 
+#include <cstdarg>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 #include "object.h"
@@ -34,6 +36,6 @@ inline std::ostream &operator<<(std::ostream &os, const _Object_Ty &obj) {
   return os << obj.object();
 }
 
-} // namespace cppbind
+} /* namespace cppbind */
 
 #endif /* __STL_H__ */

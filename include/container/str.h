@@ -26,7 +26,7 @@ public:
       : obj(PyUnicode_FromString("")) {
   }
   Str(const Object &object) : obj(object) {
-    cppbind_assert(PyUnicode_Check(obj.ptr));
+    cppbind_check_internal(PyUnicode_Check(obj.ptr));
   }
 
   Str &operator+=(const Str &other) {
