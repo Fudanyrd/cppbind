@@ -2,6 +2,7 @@ from myabc import myadd as add
 from myabc import mysum, mysum_vec # fastcall
 from myabc import kwarg_names
 from myabc import len_args_kwargs
+from myabc import always_throw
 
 def test_add():
     assert add(1, 2) == 3
@@ -53,9 +54,19 @@ def test_len_args_kwargs():
     assert len_args_kwargs(1, 2, a = 1, b = 2) == (2, 2)
 
 
+def test_always_throw():
+    try:
+        always_throw()
+    except ValueError:
+        pass
+    else:
+        assert False, "always_throw should raise ValueError"
+
+
 if __name__ == '__main__':
     test_add()
     test_kwarg_names()
     test_sum()
     test_sum_vec()
     test_len_args_kwargs()
+    test_always_throw()

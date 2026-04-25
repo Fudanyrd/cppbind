@@ -20,6 +20,11 @@ struct Module;
 
 #define sizeof_array(a) ((sizeof(a)) / sizeof(a[0]))
 
+/*
+ * Generates a `PyMODINIT_FUNC` that initializes a python module
+ * named `name`. Each arguments in `...` should be an instance
+ * of `PyMethodDef`.
+ */
 #define gen_modinit_fn_from_fns(name, traverse_fn, free_fn, clear_fn, ...)     \
   PyMODINIT_FUNC CONCAT(PyInit_, name)(void) {                                 \
     static PyMethodDef defs[] = {__VA_ARGS__, {nullptr, nullptr, 0, nullptr}}; \

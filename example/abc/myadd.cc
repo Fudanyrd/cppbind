@@ -76,6 +76,20 @@ extern "C" PyObject *len_args_kwargs(PyObject *self, PyObject *const *args,
   return ret.object().unwrap();
 }
 
+// clang-format off
+/*
+ * Example of [rasing exception](https://docs.python.org/3/c-api/exceptions.html#raising-exceptions)
+ */
+extern "C" PyObject *always_throw(PyObject *self, PyObject *const *args,
+                                  Py_ssize_t arglen);
+// clang-format on
+extern "C" PyObject *always_throw(PyObject *self, PyObject *const *args,
+                                  Py_ssize_t arglen) {
+  /* raise ValueError */
+  PyErr_SetObject(PyExc_ValueError, Py_None);
+  return nullptr;
+}
+
 gen_modinit_fn_from_fns(
     /* name */ myabc, nullptr, nullptr, nullptr,
     gen_PyMethodDef_doc(myadd, ":returns: sum of two integers"),
@@ -84,4 +98,5 @@ gen_modinit_fn_from_fns(
     gen_PyMethodDef_doc(kwarg_names,
                         ":returns: a list of name of each kw argument."),
     gen_PyMethodDef_doc(len_args_kwargs,
-                        ":returns: a tuple of `(len(args), len(kwargs))`."))
+                        ":returns: a tuple of `(len(args), len(kwargs))`."),
+    gen_PyMethodDef_doc(always_throw, ":raises: ValueError always"));
