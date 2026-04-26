@@ -73,17 +73,18 @@ template <typename Callable> struct MethodWrapper {
   }
 
   static void initType(PyTypeObject *type) {
+    auto offset = offsetof(PyTypeObject, tp_name);
+    memset(&(type->tp_name), 0, sizeof(*type) - offset);
     type->tp_name = "_ffi.MethodWrapper";
     type->tp_dealloc = __del__;
     type->tp_flags |= Py_TPFLAGS_DEFAULT;
     type->tp_call = (ternaryfunc)call;
+    type->tp_basicsize = sizeof(MethodWrapper);
   }
 
   static PyObject *createInstance(PyObject *objref, Callable callable) {
     PyTypeObject *type =
         (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
-    auto offset = offsetof(PyTypeObject, tp_name);
-    memset(&(type->tp_name), 0, sizeof(*type) - offset);
     initType(type);
 
     PyObject *obj = _PyObject_New((PyTypeObject *)type);
