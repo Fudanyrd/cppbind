@@ -1,6 +1,8 @@
 #include <cassert>
+#include <iostream>
 
 #include <cppbind.h>
+#include <stl.h>
 
 using cppbind::List;
 using cppbind::Long;
@@ -56,16 +58,14 @@ extern "C" PyObject *kwarg_names(PyObject *self, PyObject *args,
 
 /* Returns a tuple of `(len(args), len(kwargs))`. */
 extern "C" PyObject *len_args_kwargs(PyObject *self, PyObject *const *args,
-                                     Py_ssize_t arglen, PyObject *kwargs) {
+                                     Py_ssize_t arglen, PyObject *kwnames) {
   __static_assert(cppbind::CFunction_flags<decltype(&len_args_kwargs)>());
 
   Long len_args(arglen);
   long kwarg_size = 0;
-  if (kwargs) {
-    if (PyDict_Check(kwargs)) {
-      kwarg_size = PyDict_Size(kwargs);
-    } else if (PyTuple_Check(kwargs)) {
-      kwarg_size = PyTuple_Size(kwargs);
+  if (kwnames) {
+    if (PyTuple_Check(kwnames)) {
+      kwarg_size = PyTuple_Size(kwnames);
     } else {
       cppbind_check_internal(0 && "kwargs is not dict or tuple");
     }

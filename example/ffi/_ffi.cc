@@ -13,6 +13,8 @@ struct CInt {
 
 private:
   PyObject pyobj;
+
+public:
   int num;
 };
 
@@ -72,7 +74,14 @@ extern "C" PyObject *CInt_Init(PyObject *self) {
 }
 
 extern "C" PyObject *CInt_New(PyObject *self) { return CInt_Init(self); }
+extern "C" PyObject *CInt_FromInt(PyObject *self, PyObject *arg) {
+  auto *ret = CInt_Init(self);
+  from_pyobj(ret)->num = (long)Long(arg);
+  return ret;
+}
 
-gen_modinit_fn_from_fns(_ffi, nullptr, nullptr, nullptr,
-                        gen_PyMethodDef_doc(CInt_New,
-                                            ":returns: a new CInt object"))
+gen_modinit_fn_from_fns(
+    _ffi, nullptr, nullptr, nullptr,
+    gen_PyMethodDef_doc(CInt_New, ":returns: a new CInt object"),
+    (PyMethodDef){"CInt_FromInt", (PyCFunction)CInt_FromInt, METH_O,
+                  "Creates a new CInt object from an integer."});

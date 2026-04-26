@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include <cast.h>
 #include <object.h>
 #include <package/invoke.h>
 
