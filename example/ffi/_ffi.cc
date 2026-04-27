@@ -37,7 +37,7 @@ extern "C" PyObject *CInt_getattr(PyObject *self, char *name) {
     return CInt_getvalue(self);
   } else if (strcmp(name, "getvalue") == 0) {
     return MethodWrapper<decltype(&CInt_getvalue)>::createInstance(
-        self, CInt_getvalue);
+        self, CInt_getvalue, "_ffi");
   }
   PyErr_SetString(PyExc_AttributeError, "attribute not found");
   return nullptr;

@@ -2,6 +2,7 @@
 #define __PACKAGE_FUNC_H__ (1)
 
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 
 #include <cast.h>
@@ -73,31 +74,48 @@ template <typename Callable> struct MethodWrapper {
     return (*wrapper)(self, args, kwargs);
   }
 
-  static void initType(PyTypeObject *type) {
+  static void initType(PyTypeObject *type, const char *name) {
     auto offset = offsetof(PyTypeObject, tp_name);
     memset(&(type->tp_name), 0, sizeof(*type) - offset);
-    type->tp_name = "_ffi.MethodWrapper";
+    type->tp_name = name;
     type->tp_dealloc = __del__;
     type->tp_flags |= Py_TPFLAGS_DEFAULT;
     type->tp_call = (ternaryfunc)call;
     type->tp_basicsize = sizeof(MethodWrapper);
   }
 
-  static PyObject *createInstance(PyObject *objref, Callable callable) {
-    PyTypeObject *type =
-        (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
-    initType(type);
-
-    PyObject *obj = _PyObject_New((PyTypeObject *)type);
-    new (obj) MethodWrapper(objref, callable);
-    return obj;
-  }
+  static PyObject *createInstance(PyObject *objref, Callable callable,
+                                  const char *package_name);
 
 private:
   PyObject pyobj;
   PyObject *self;
   Callable callable;
 };
+
+template <typename Callable>
+PyObject *MethodWrapper<Callable>::createInstance(PyObject *objref,
+                                                  Callable callable,
+                                                  const char *package_name) {
+  constexpr char my_name[] = "MethodWrapper";
+  PyTypeObject *type =
+      (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
+  auto package_name_len = strlen(package_name);
+  if (likely(package_name_len < 32)) {
+    char name[64];
+    sprintf(name, "%s.%s", package_name, my_name);
+    initType(type, name);
+  } else {
+    char *name = (char *)malloc(package_name_len + sizeof(my_name) + 2);
+    sprintf(name, "%s.%s", package_name, my_name);
+    initType(type, name);
+    free(name);
+  }
+
+  PyObject *obj = _PyObject_New((PyTypeObject *)type);
+  new (obj) MethodWrapper<Callable>(objref, callable);
+  return obj;
+}
 
 } /* namespace cppbind */
 
