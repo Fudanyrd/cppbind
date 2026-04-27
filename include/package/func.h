@@ -19,9 +19,6 @@ template <> constexpr int CFunction_flags<PyObject *(*)(void)>(void) {
 template <> constexpr int CFunction_flags<PyCFunction>(void) {
   return METH_VARARGS;
 }
-template <> constexpr int CFunction_flags<PyCArgsFunction>(void) {
-  return METH_VARARGS;
-}
 template <> constexpr int CFunction_flags<PyObject *(*)(PyObject *)>(void) {
   return METH_NOARGS;
 }

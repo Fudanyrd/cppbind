@@ -1,10 +1,12 @@
 #include <cstdio>
+#include <map>
 
 #include <cppbind.h>
 
 using cppbind::Long;
 using cppbind::MethodWrapper;
 using cppbind::Object;
+using std::map;
 
 struct CInt {
   CInt() : num(0) {}
@@ -17,6 +19,111 @@ private:
 public:
   int num;
 };
+
+struct CppMap {
+  struct Compare {
+    PyObject *compare;
+
+    Compare(PyObject *compare) : compare(compare) { Py_INCREF(compare); }
+    ~Compare() { Py_DECREF(compare); }
+    bool operator()(PyObject *a, PyObject *b) const {
+      auto *ret = PyObject_CallFunctionObjArgs(compare, a, b, nullptr);
+      return PyObject_IsTrue(ret);
+    }
+  };
+
+  CppMap(PyObject *compare_fn) : table(Compare(compare_fn)) {
+    Py_INCREF(compare_fn);
+  }
+  ~CppMap() = default;
+
+  PyObject *get(PyObject *key) const {
+    auto it = table.find(key);
+    if (it == table.end()) {
+      return Py_None;
+    }
+    return it->second;
+  }
+  PyObject *put(PyObject *key, PyObject *value) {
+    if (value == nullptr) {
+      PyErr_SetString(PyExc_ValueError, "value cannot be None");
+      return nullptr;
+    }
+    table[key] = value;
+    Py_INCREF(value);
+    return Py_None;
+  }
+
+  static PyTypeObject *type();
+  static PyObject *getattr(PyObject *self, char *name);
+  static PyObject *_get(PyObject *self, PyObject *args, PyObject *kwargs) {
+    CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+    PyObject *key = PyTuple_GetItem(args, 0);
+    return cppmap->get(key);
+  }
+  static PyObject *_put(PyObject *self, PyObject *args, PyObject *kwargs);
+  static PyObject *_size(PyObject *self, PyObject *args, PyObject *kwargs) {
+    CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+    return Long(cppmap->table.size()).object().unwrap();
+  }
+
+  PyObject pyobj;
+  map<PyObject *, PyObject *, Compare> table;
+};
+
+auto CppMap::_put(PyObject *self, PyObject *args,
+                  PyObject *kwargs) -> PyObject * {
+  CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+  if (!PyTuple_Check(args)) {
+    PyErr_SetString(PyExc_TypeError, "arguments must be passed in a tuple");
+    return nullptr;
+  }
+  if (PyTuple_Size(args) != 2) {
+    PyErr_SetString(PyExc_TypeError, "put method requires exactly 2 arguments");
+    return nullptr;
+  }
+
+  PyObject *key = PyTuple_GetItem(args, 0);
+  PyObject *value = PyTuple_GetItem(args, 1);
+  return cppmap->put(key, value);
+}
+
+PyObject *CppMap::getattr(PyObject *self, char *name) {
+  if (strcmp(name, "get") == 0) {
+    return MethodWrapper<decltype(&CppMap::_get)>::createInstance(
+        self, &CppMap::_get, "_ffi");
+  } else if (strcmp(name, "put") == 0) {
+    return MethodWrapper<decltype(&CppMap::_put)>::createInstance(
+        self, &CppMap::_put, "_ffi");
+  } else if (strcmp(name, "size") == 0) {
+    return MethodWrapper<decltype(&CppMap::_size)>::createInstance(
+        self, &CppMap::_size, "_ffi");
+  }
+  PyErr_SetString(PyExc_AttributeError, "attribute not found");
+  return nullptr;
+}
+
+PyTypeObject *CppMap::type() {
+  auto *ret = (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
+  memset(&(ret->tp_name), 0,
+         sizeof(PyTypeObject) - offsetof(PyTypeObject, tp_name));
+  ret->tp_name = "_ffi.CppMap";
+  ret->tp_basicsize = sizeof(CppMap);
+  ret->tp_dealloc = [](PyObject *self) {
+    CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+    cppmap->~CppMap();
+  };
+  ret->tp_getattr = &CppMap::getattr;
+  ret->tp_flags = Py_TPFLAGS_DEFAULT;
+  return ret;
+}
+
+extern "C" PyObject *CppMap_New(PyObject *self, PyObject *compare_fn) {
+  auto *type = CppMap::type();
+  PyObject *ret = _PyObject_New((PyTypeObject *)type);
+  new (ret) CppMap(compare_fn);
+  return ret;
+}
 
 static inline CInt *from_pyobj(PyObject *obj) {
   return reinterpret_cast<CInt *>(obj);
@@ -84,4 +191,7 @@ gen_modinit_fn_from_fns(
     _ffi, nullptr, nullptr, nullptr,
     gen_PyMethodDef_doc(CInt_New, ":returns: a new CInt object"),
     (PyMethodDef){"CInt_FromInt", (PyCFunction)CInt_FromInt, METH_O,
-                  "Creates a new CInt object from an integer."});
+                  "Creates a new CInt object from an integer."},
+    (PyMethodDef){
+        "CppMap_New", (PyCFunction)CppMap_New, METH_O,
+        "Creates a new CppMap object with the given compare function."})
