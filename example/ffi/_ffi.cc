@@ -67,6 +67,9 @@ struct CppMap {
     return Long(cppmap->table.size()).object().unwrap();
   }
 
+  static PyObject *getItem(PyObject *self, PyObject *key);
+  static int setItem(PyObject *self, PyObject *key, PyObject *value);
+
   PyObject pyobj;
   map<PyObject *, PyObject *, Compare> table;
 };
@@ -115,7 +118,40 @@ PyTypeObject *CppMap::type() {
   };
   ret->tp_getattr = &CppMap::getattr;
   ret->tp_flags = Py_TPFLAGS_DEFAULT;
+  static PyMappingMethods mapping_methods = {
+      .mp_length = [](PyObject *self) -> Py_ssize_t {
+        auto *self_as_map = reinterpret_cast<CppMap *>(self);
+        return static_cast<Py_ssize_t>(self_as_map->table.size());
+      },
+      .mp_subscript = &CppMap::getItem,
+      .mp_ass_subscript = &CppMap::setItem,
+  };
+  ret->tp_as_mapping = &mapping_methods;
   return ret;
+}
+
+PyObject *CppMap::getItem(PyObject *self, PyObject *key) {
+  CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+  auto iter = cppmap->table.find(key);
+  if (iter == cppmap->table.end()) {
+    PyErr_SetString(PyExc_KeyError, "key not found");
+    return nullptr;
+  }
+  auto *ret = iter->second;
+  return ret;
+}
+
+int CppMap::setItem(PyObject *self, PyObject *key, PyObject *value) {
+  CppMap *cppmap = reinterpret_cast<CppMap *>(self);
+  auto iter = cppmap->table.find(key);
+  if (iter == cppmap->table.end()) {
+    cppmap->table[key] = value;
+  } else {
+    Py_DECREF(iter->second);
+    iter->second = value;
+  }
+  Py_INCREF(value);
+  return 0;
 }
 
 extern "C" PyObject *CppMap_New(PyObject *self, PyObject *compare_fn) {

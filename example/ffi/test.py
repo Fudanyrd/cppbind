@@ -27,10 +27,16 @@ def _compare(a: int, b: int) -> bool:
 def test_cppmap():
     table = CppMap_New(_compare)
     for i in range(4):
-        table.put(i, i * i)
+        table[i] = i * i
 
     for i in range(4):
-        assert table.get(i) == i * i
+        assert table[i] == i * i
+    assert table.get(4) is None
+    try:
+        table[4]
+        assert False, "Expected KeyError"
+    except KeyError:
+        pass
     assert table.size() == 4
     del table
 
