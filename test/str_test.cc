@@ -81,4 +81,12 @@ TEST(Str, Stringify) {
   ASSERT_EQ(cpp_str, actual);
 }
 
+TEST(Bytes, Create) {
+  constexpr char a[] = "\xf0\x9f\x98\x83"
+                       "abc";
+
+  Bytes bytes(a);
+  ASSERT_EQ(strcmp(bytes.data(), a), 0);
+}
+
 } // namespace cppbind

@@ -5,6 +5,7 @@
 #include "object.h"
 #include "traceback.h"
 
+#include "container/bytes.h"
 #include "container/dict.h"
 #include "container/list.h"
 #include "container/str.h"
