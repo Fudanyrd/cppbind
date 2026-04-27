@@ -6,7 +6,21 @@ static bool is_python_str(PyObject *obj) { return PyUnicode_Check(obj); }
 static std::string from_python_str(PyObject *str) {
   const char *data = reinterpret_cast<const char *>(PyUnicode_DATA(str));
   Py_ssize_t size = PyUnicode_GET_LENGTH(str);
-  return std::string(data, size);
+
+  if (PyUnicode_KIND(str) == PyUnicode_1BYTE_KIND) {
+    return std::string(data, size);
+  }
+
+  std::string ret;
+  PyObject *bytes = PyUnicode_AsUTF8String(str);
+  if (likely(bytes != nullptr)) {
+    data = PyBytes_AS_STRING(bytes);
+    size = PyBytes_GET_SIZE(bytes);
+    ret.assign(data, size);
+    Py_DECREF(bytes);
+  }
+
+  return ret;
 }
 
 namespace cppbind {

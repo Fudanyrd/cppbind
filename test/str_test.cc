@@ -2,6 +2,7 @@
 
 #include <cppbind.h>
 #include <gtest/gtest.h>
+#include <stl.h>
 
 namespace cppbind {
 
@@ -67,6 +68,17 @@ TEST(Str, SubStr) {
 
   sub = str[2];
   ASSERT_TRUE(sub == Str("c"));
+}
+
+TEST(Str, Stringify) {
+  constexpr char a[] = "\xf0\x9f\x98\x83"
+                       "abc";
+
+  Str py_str(a);
+  std::string cpp_str(a);
+  std::string actual = stringify(py_str);
+
+  ASSERT_EQ(cpp_str, actual);
 }
 
 } // namespace cppbind

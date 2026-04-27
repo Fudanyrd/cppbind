@@ -9,6 +9,9 @@ apt-get -y install \
   python3-dev \
   python3-pip \
   clang-format-15 \
+  clang-15 \
+  unzip \
+  wget \
   shellcheck
 
 exit 0

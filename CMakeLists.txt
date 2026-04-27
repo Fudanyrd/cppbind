@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_FLAGS_DEBUG "-Wpedantic -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "-Wpedantic -Wall -g -g3 -O0")
 
 # XXX: Read these options.
 option(BUILD_UNITTESTS "Build the unittest runner." TRUE)
