@@ -91,7 +91,7 @@ extern "C" PyObject *always_throw(PyObject *self, PyObject *const *args,
 }
 
 gen_modinit_fn_from_fns(
-    /* name */ myabc, nullptr, nullptr, nullptr,
+    /* name */ myabc, nullptr, nullptr, nullptr, nullptr,
     gen_PyMethodDef_doc(myadd, ":returns: sum of two integers"),
     gen_PyMethodDef_doc(mysum, ":returns: sum of all integers"),
     gen_PyMethodDef_doc(mysum_vec, ":returns: sum of all integers"),

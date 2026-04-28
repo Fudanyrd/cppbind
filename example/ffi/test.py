@@ -42,9 +42,12 @@ def test_cppmap():
 
     table = CppMap_New(_compare)
     table.put(0, "😀")
+    # starting from 0c1e2e13, putting `None` is allowed
+    table.put(1, None)
     method = table.get
     del table
     assert method(0) == "😀"
+    assert method(1) is None
     del method
 
 

@@ -41,11 +41,11 @@ template <> constexpr int CFunction_flags<PyCFunctionVecWithKeywords>(void) {
 #pragma GCC diagnostic ignored "-Wpedantic"
 #define gen_PyMethodDef(fn)                                                    \
   (PyMethodDef) {                                                              \
-    #fn, (PyCFunction)fn, cppbind::CFunction_flags<decltype(&fn)>(), nullptr   \
+    #fn, (PyCFunction)fn, ::cppbind::CFunction_flags<decltype(&fn)>(), nullptr \
   }
 #define gen_PyMethodDef_doc(fn, doc)                                           \
   (PyMethodDef) {                                                              \
-    #fn, (PyCFunction)fn, cppbind::CFunction_flags<decltype(&fn)>(), doc       \
+    #fn, (PyCFunction)fn, ::cppbind::CFunction_flags<decltype(&fn)>(), doc     \
   }
 
 template <typename Callable> struct MethodWrapper {
