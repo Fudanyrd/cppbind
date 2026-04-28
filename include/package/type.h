@@ -51,7 +51,7 @@ public:
     return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
   }
 
-#define MethodTableEntry_build_noarg_lambda(cpp_class, method)                \
+#define MethodTableEntry_build_noarg_lambda(cpp_class, method)                 \
   [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
     cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
     auto ret = obj->method();                                                  \

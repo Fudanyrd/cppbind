@@ -1,0 +1,4 @@
+[submodule "3rdparty/doxygen"]
+	path = 3rdparty/doxygen
+	url = git@github.com:doxygen/doxygen.git
+	branch = Release_1_8_11

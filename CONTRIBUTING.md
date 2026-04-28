@@ -10,7 +10,7 @@ Use the prefix `CPPBIND_` for all cmake variables.
 * Use Camel case names for `struct`(s) and `class`(es).
 * Use snake case names for functions and variables.
 * Use GNU-style [single-line comments](https://www.gnu.org/software/grub/manual/grub-dev/grub-dev.html#Comments) and
-  [multi-line comments](https://www.gnu.org/software/grub/manual/grub-dev/grub-dev.html#Multi_002dLine-Comments)
+  [JavaDoc multi-line comments](https://www.doxygen.nl/manual/docblocks.html).
 
 ## Shell Scripts
 

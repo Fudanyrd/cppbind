@@ -21,6 +21,9 @@ namespace cppbind {
     return nullptr;                                                            \
   } while (0)
 
+/**
+ * Map a C++ exception type to a Python exception type.
+ */
 template <typename ExceptionTy>
 inline PyObject *except_cpp_to_py(ExceptionTy &ex) {
   return PyExc_Exception;
@@ -48,7 +51,7 @@ map_except_cpp_py(gen_except_cpp_to_py)
   return 0;
 }
 
-/*
+/**
  * Set python exception from an `std::exception`.
  */
 void PyErr_from_cpp_exception(std::exception &ex);
