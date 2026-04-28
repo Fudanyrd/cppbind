@@ -3,3 +3,4 @@ include_directories(${PROJECT_SOURCE_DIR}/3rdparty/gtest/googletest/include)
 
 # bin/config[.exe]
 add_executable(config config.cc)
+add_executable(project project.cc)
