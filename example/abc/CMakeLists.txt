@@ -1,4 +1,4 @@
-include_directories(${MY_GLOBL_INCLUDE_DIRS})
+include_directories(${CPPBIND_INCLUDE_DIRS})
 add_library(myabc SHARED myadd.cc)
 target_link_libraries(myabc cppbind ${PYTHON_LIBRARY})
 

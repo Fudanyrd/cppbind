@@ -1,4 +1,4 @@
-include_directories(${MY_GLOBL_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CPPBIND_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 add_library(_ffi SHARED _ffi.cc)
 target_link_libraries(myabc cppbind ${PYTHON_LIBRARY})
 

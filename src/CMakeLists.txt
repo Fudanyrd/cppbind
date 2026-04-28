@@ -1,5 +1,5 @@
-include_directories(${MY_GLOBL_INCLUDE_DIRS})
-file(GLOB MY_CPP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
+include_directories(${CPPBIND_INCLUDE_DIRS})
+file(GLOB CPPBIND_CPP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
 
-add_library(cppbind STATIC ${MY_CPP_SRC})
+add_library(cppbind STATIC ${CPPBIND_CPP_SRC})
 
