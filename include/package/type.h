@@ -26,7 +26,7 @@ public:
 
   MethodTableEntry(const char *name, gen_t gen) : name(name), gen(gen) {}
 
-#define MethodTableEntry_build_args(package_name, cpp_class, method)           \
+#define MethodTableEntry_build(package_name, cpp_class, method, meth_wrapper)  \
   ::cppbind::MethodTableEntry(                                                 \
       STR(method),                                                             \
       (::cppbind::MethodTableEntry::gen_t)(                                    \
@@ -36,42 +36,37 @@ public:
                 ::cppbind::MethodTableEntry::method_t>::                       \
                 createInstance(                                                \
                     self,                                                      \
-                    (::cppbind::MethodTableEntry::method_t)(                   \
-                        [](PyObject *self, PyObject *args,                     \
-                           PyObject *kwargs) -> PyObject * {                   \
-                          cpp_class *obj =                                     \
-                              reinterpret_cast<cpp_class *>(self);             \
-                          ::cppbind::Tuple tuple{Object{args}};                \
-                          auto ret = obj->method(tuple);                       \
-                          return ::cppbind::into<decltype(ret)>(ret).unwrap(); \
-                        }),                                                    \
+                    (::cppbind::MethodTableEntry::method_t)(meth_wrapper),     \
                     package_name);                                             \
             return reinterpret_cast<::cppbind::MethodWrapper<                  \
                 ::cppbind::MethodTableEntry::method_t> *>(ret);                \
           }))
 
+#define MethodTableEntry_build_args_lambda(cpp_class, method)                  \
+  [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
+    cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
+    ::cppbind::Tuple tuple{Object{args}};                                      \
+    auto ret = obj->method(tuple);                                             \
+    tuple.object().unwrap();                                                   \
+    return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
+  }
+
+#define MethodTableEntry_build_noarg_lambda(cpp_class, method)                \
+  [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
+    cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
+    auto ret = obj->method();                                                  \
+    return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
+  }
+
+#define MethodTableEntry_build_args(package_name, cpp_class, method)           \
+  MethodTableEntry_build(                                                      \
+      package_name, cpp_class, method,                                         \
+      MethodTableEntry_build_args_lambda(cpp_class, method))
+
 #define MethodTableEntry_build_noarg(package_name, cpp_class, method)          \
-  ::cppbind::MethodTableEntry(                                                 \
-      STR(method),                                                             \
-      (::cppbind::MethodTableEntry::gen_t)(                                    \
-          [](PyObject *self) -> ::cppbind::MethodWrapper<                      \
-                                 ::cppbind::MethodTableEntry::method_t> * {    \
-            auto *ret = ::cppbind::MethodWrapper<                              \
-                ::cppbind::MethodTableEntry::method_t>::                       \
-                createInstance(                                                \
-                    self,                                                      \
-                    (::cppbind::MethodTableEntry::method_t)(                   \
-                        [](PyObject *self, PyObject *args,                     \
-                           PyObject *kwargs) -> PyObject * {                   \
-                          cpp_class *obj =                                     \
-                              reinterpret_cast<cpp_class *>(self);             \
-                          auto ret = obj->method();                            \
-                          return ::cppbind::into<decltype(ret)>(ret).unwrap(); \
-                        }),                                                    \
-                    package_name);                                             \
-            return reinterpret_cast<::cppbind::MethodWrapper<                  \
-                ::cppbind::MethodTableEntry::method_t> *>(ret);                \
-          }))
+  MethodTableEntry_build(                                                      \
+      package_name, cpp_class, method,                                         \
+      MethodTableEntry_build_noarg_lambda(cpp_class, method))
 };
 
 template <typename CppClass> struct Type {
