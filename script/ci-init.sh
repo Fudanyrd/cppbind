@@ -9,7 +9,10 @@ apt-get -y install \
   python3-dev \
   python3-pip \
   clang-format-15 \
+  clang-tidy-15 \
+  doxygen \
   clang-15 \
+  gawk \
   unzip \
   wget \
   shellcheck
