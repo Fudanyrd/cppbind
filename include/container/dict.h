@@ -45,7 +45,24 @@ public:
    * Constructs an empty {@link Dict}.
    */
   Dict() : obj(PyDict_New()) {}
+
+  /**
+   * Construct from an {@link Object} holding a python dict.
+   */
+  Dict(const Object &ob) : obj(ob) {
+    cppbind_check_internal(PyDict_check(ob.ptr));
+  }
   ~Dict() = default;
+
+  /**
+   * Construct a tuple from python method  key-value argument
+   * `kwargs`.
+   */
+  static Dict from_kwargs(PyObject *kwargs) {
+    Object obj{kwargs};
+    obj.inc_ref(); /* neutralize the effect of ~Dict. */
+    return Dict(obj);
+  }
 
   /**
    * A class that acts as reference to value in the dict (a {@link Object}).

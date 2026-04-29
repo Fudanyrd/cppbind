@@ -69,9 +69,8 @@ public:
 #define MethodTableEntry_build_args_lambda(cpp_class, method)                  \
   [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
     cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
-    ::cppbind::Tuple tuple{Object{args}};                                      \
+    ::cppbind::Tuple tuple = ::cppbind::Tuple::from_args(args);                \
     auto ret = obj->method(tuple);                                             \
-    tuple.object().unwrap();                                                   \
     return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
   }
 

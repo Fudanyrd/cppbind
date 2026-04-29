@@ -24,6 +24,19 @@ public:
   Tuple() : obj(PyTuple_New(0)) {}
 
   /**
+   * Construct a tuple from python tuple reference.
+   */
+  Tuple(PyObject *tuple) : obj(tuple) {}
+
+  /**
+   * Construct a tuple from python method argument `args`.
+   */
+  static Tuple from_args(PyObject *args) {
+    Py_INCREF(args); /* neutralize the effect of ~Tuple. */
+    return Tuple(args);
+  }
+
+  /**
    * Convert a {@link Object} guarding a tuple to {@link Tuple}.
    */
   Tuple(const Object &other) : obj(other) {

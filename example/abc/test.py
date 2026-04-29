@@ -9,6 +9,12 @@ def test_add():
     assert add(-1, 1) == 0
     assert add(0, 0) == 0
 
+    try:
+        add(1)
+        assert False, "add should raise TypeError when given too few arguments"
+    except TypeError:
+        pass
+
     print('1 + 2 =', add(1, 2))
 
 

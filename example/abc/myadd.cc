@@ -12,8 +12,13 @@ using cppbind::Tuple;
 extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&myadd)>());
   assert(args && PyTuple_Check(args));
-  Tuple list{Object{args}};
-  assert(list.size() == 2);
+  Tuple list = Tuple::from_args(args);
+
+  if (list.size() != 2) {
+    PyErr_SetString(PyExc_TypeError, "expected exactly 2 arguments");
+    return nullptr;
+  }
+
   Long a(list[0].ptr), b(list[1].ptr);
   a += b;
   return a.object().unwrap();
@@ -22,7 +27,7 @@ extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
 extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&mysum)>());
   assert(args && PyTuple_Check(args));
-  Tuple list{Object{args}};
+  Tuple list = Tuple::from_args(args);
   Long sum(0);
   for (Py_ssize_t i = 0; i < list.size(); i++) {
     Long a(list[i].ptr);
