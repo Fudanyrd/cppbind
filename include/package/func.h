@@ -129,7 +129,7 @@ template <typename Callable> struct MethodWrapper {
     memset(&(type->tp_name), 0, sizeof(*type) - offset);
     type->tp_name = name;
     type->tp_dealloc = __del__;
-    type->tp_flags |= Py_TPFLAGS_DEFAULT;
+    type->tp_flags = Py_TPFLAGS_DEFAULT;
     type->tp_call = (ternaryfunc)call;
     type->tp_basicsize = sizeof(MethodWrapper);
   }
@@ -137,38 +137,52 @@ template <typename Callable> struct MethodWrapper {
   /**
    * @param objref: the `self` argument to the `callable` method.
    * @param callable: the actual method wrapper, as a function pointer.
-   * @param package_name: name of current package.
-   *
    *
    * @return an instance of {@link MethodWrapper}, cast as `PyObject`.
    */
-  static PyObject *createInstance(PyObject *objref, Callable callable,
-                                  const char *package_name);
+  static PyObject *createInstance(PyObject *objref, Callable callable);
 
 private:
   PyObject pyobj;
   PyObject *self;
   Callable callable;
+
+public:
+  static PyTypeObject *method_type;
+  static void init_method_type(const char *name) {
+    if (method_type == nullptr) {
+      method_type = (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
+      initType(method_type, name);
+    }
+  }
+
+/**
+ * @param package_name: the name of the package (string literal).
+ * @param callable_type: the type of the method wrapper, e.g., `PyCFunction`.
+ */
+#define MethodWrapper_init(package_name, callable_type)                        \
+  do {                                                                         \
+    ::cppbind::MethodWrapper<callable_type>::init_method_type(                 \
+        package_name ".MethodWrapper");                                        \
+    if (::cppbind::MethodWrapper<callable_type>::method_type == nullptr) {     \
+      PyErr_SetString(PyExc_RuntimeError,                                      \
+                      "failed to create method wrapper type");                 \
+      return (1);                                                              \
+    }                                                                          \
+  } while (0)
+
+#define method_wrapper_static_members(callable_type)                           \
+  template <>                                                                  \
+  PyTypeObject * ::cppbind::MethodWrapper<callable_type>::method_type =        \
+      nullptr
 };
 
 template <typename Callable>
 PyObject *MethodWrapper<Callable>::createInstance(PyObject *objref,
-                                                  Callable callable,
-                                                  const char *package_name) {
-  constexpr char my_name[] = "MethodWrapper";
+                                                  Callable callable) {
   PyTypeObject *type =
-      (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
-  auto package_name_len = strlen(package_name);
-  if (likely(package_name_len < 32)) {
-    char name[64];
-    sprintf(name, "%s.%s", package_name, my_name);
-    initType(type, name);
-  } else {
-    char *name = (char *)malloc(package_name_len + sizeof(my_name) + 2);
-    sprintf(name, "%s.%s", package_name, my_name);
-    initType(type, name);
-    free(name);
-  }
+      MethodWrapper<Callable>::method_type; /* initialized in package init
+                                               function */
 
   PyObject *obj = _PyObject_New((PyTypeObject *)type);
   new (obj) MethodWrapper<Callable>(objref, callable);

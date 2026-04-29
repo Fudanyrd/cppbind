@@ -58,10 +58,8 @@ public:
                                  ::cppbind::MethodTableEntry::method_t> * {    \
             auto *ret = ::cppbind::MethodWrapper<                              \
                 ::cppbind::MethodTableEntry::method_t>::                       \
-                createInstance(                                                \
-                    self,                                                      \
-                    (::cppbind::MethodTableEntry::method_t)(meth_wrapper),     \
-                    package_name);                                             \
+                createInstance(self, (::cppbind::MethodTableEntry::method_t)(  \
+                                         meth_wrapper));                       \
             return reinterpret_cast<::cppbind::MethodWrapper<                  \
                 ::cppbind::MethodTableEntry::method_t> *>(ret);                \
           }))
@@ -161,6 +159,7 @@ template <typename CppClass> struct Type {
   static ::cppbind::MethodTableEntry CONCAT(methods_,                          \
                                             cpp_class)[] = {__VA_ARGS__};      \
   do {                                                                         \
+    MethodWrapper_init(module_name, ::cppbind::MethodTableEntry::method_t);    \
     ::cppbind::Type<cpp_class>::methods = CONCAT(methods_, cpp_class);         \
     ::cppbind::Type<cpp_class>::methods_cnt =                                  \
         sizeof(CONCAT(methods_, cpp_class)) /                                  \
@@ -238,7 +237,6 @@ PyObject *Type<CppClass>::getattr(PyObject *self, char *name) {
   for (Py_ssize_t i = 0; i < count; i++) {
     if (strcmp(name, methods[i].name) == 0) {
       auto *ret = reinterpret_cast<PyObject *>(methods[i].gen(self));
-      Py_INCREF(ret);
       return ret;
     }
   }
