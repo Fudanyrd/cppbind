@@ -48,29 +48,82 @@ template <> constexpr int CFunction_flags<PyCFunctionVecWithKeywords>(void) {
     #fn, (PyCFunction)fn, ::cppbind::CFunction_flags<decltype(&fn)>(), doc     \
   }
 
+/**
+ * A wrapper for method function. It is a callable object that
+ * wraps the actual method, and can be called by python.
+ *
+ * Example of this:
+ * <blockquote><pre>
+ * struct CBytes {
+ *   PyObject pyobj; // required for all python classes
+ *   const char *buf;
+ *   // cast *this to Python3 bytes.
+ *   PyObject *bytes() const;
+ * };
+ *
+ * // the most common method wrapper (not accessible in Python):
+ * PyObject *CBytes_bytes (PyObject *self,
+ *              PyObject *args, // Tuple, Unused
+ *              PyObject *kwargs) { // Dict, Unused
+ *   // cast to CBytes.
+ *   CBytes *cppobj = reinterpret_cast<CBytes *>(self);
+ *   // call the actual method.
+ *   return cppobj->bytes();
+ * }
+ *
+ * // a CBytes Instance:
+ * CBytes mybytes;
+ *
+ * // create a Method wrapper (accessible in python):
+ * MethodWrapper *methodObject =
+ * MethodWrapper::createInstance(&mybytes, &CBytes_bytes, "_mypackage");
+ * </pre></blockquote>
+ */
 template <typename Callable> struct MethodWrapper {
 
+  /**
+   * Create an {@link MethodWrapper}.
+   *
+   * @param self: the `PyObject` owning the method.
+   * @param callable: a function pointer whose first
+   * argument is `self`.
+   */
   MethodWrapper(PyObject *self, Callable callable)
       : self(self), callable(callable) {
     Py_INCREF(self);
   }
   ~MethodWrapper() { Py_DECREF(self); }
 
+  /**
+   * Invoke the callable with args and kwargs.
+   */
   PyObject *operator()(PyObject *self, PyObject *args, PyObject *kwargs) const {
     auto *objref = this->self;
     return ((ternaryfunc)callable)(objref, args, kwargs);
   }
 
+  /**
+   * Explicitly invoke the destructor of {@link MethodWrapper}.
+   */
   static void __del__(PyObject *self) {
     MethodWrapper *wrapper = reinterpret_cast<MethodWrapper *>(self);
     wrapper->~MethodWrapper();
   }
 
+  /**
+   * Invoke the callable with args and kwargs.
+   */
   static PyObject *call(PyObject *self, PyObject *args, PyObject *kwargs) {
     MethodWrapper *wrapper = reinterpret_cast<MethodWrapper *>(self);
     return (*wrapper)(self, args, kwargs);
   }
 
+  /**
+   * Constructs a `PyTypeObject` in `type`.
+   *
+   * @param type: pointer to the `PyTypeObject` to be initialized.
+   * @param name: the name of the type, in format "<package>.<name>".
+   */
   static void initType(PyTypeObject *type, const char *name) {
     auto offset = offsetof(PyTypeObject, tp_name);
     memset(&(type->tp_name), 0, sizeof(*type) - offset);
@@ -81,6 +134,14 @@ template <typename Callable> struct MethodWrapper {
     type->tp_basicsize = sizeof(MethodWrapper);
   }
 
+  /**
+   * @param objref: the `self` argument to the `callable` method.
+   * @param callable: the actual method wrapper, as a function pointer.
+   * @param package_name: name of current package.
+   *
+   *
+   * @return an instance of {@link MethodWrapper}, cast as `PyObject`.
+   */
   static PyObject *createInstance(PyObject *objref, Callable callable,
                                   const char *package_name);
 

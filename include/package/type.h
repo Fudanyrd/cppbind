@@ -16,14 +16,38 @@ static inline PyTypeObject *PyTypeObject_Zero() {
   return ret;
 }
 
+/**
+ * The method table entry for a type. It contains the method name and a
+ * generator of {@link MethodWrapper}. The generator takes the self pointer as
+ * argument and returns a {@link MethodWrapper}, which is a callable object that
+ * wraps the actual method.
+ */
 struct MethodTableEntry {
 public:
+  /**
+   * Python method type.
+   */
   typedef PyObject *(*method_t)(PyObject *self, PyObject *args,
                                 PyObject *kwargs);
+  /**
+   * {@link MethodWrapper} generator type.
+   */
   typedef MethodWrapper<method_t> *(*gen_t)(PyObject *self);
-  const char *name; /* static allocated string */
-  gen_t gen;        /* generator of method wrapper, takes self as argument. */
 
+  /**
+   * The name of the method. It should be a string literal.
+   */
+  const char *name; /* static allocated string */
+
+  /**
+   * A generator of {@link MethodWrapper}.
+   */
+  gen_t gen; /* generator of method wrapper, takes self as argument. */
+
+  /**
+   * @param name the name of the method. It should be a string literal.
+   * @param gen the generator of {@link MethodWrapper}.
+   */
   MethodTableEntry(const char *name, gen_t gen) : name(name), gen(gen) {}
 
 #define MethodTableEntry_build(package_name, cpp_class, method, meth_wrapper)  \
@@ -69,17 +93,54 @@ public:
       MethodTableEntry_build_noarg_lambda(cpp_class, method))
 };
 
+/**
+ * The type wrapper for a C++ class.
+ */
 template <typename CppClass> struct Type {
   Type() = default;
+  /**
+   * Cast `this` to `PyTypeObject *`.
+   */
   PyTypeObject *into() { return reinterpret_cast<PyTypeObject *>(this); }
 
+  /**
+   * Place-holder and the <b>only</b> non-static member of
+   * {@link Type}.
+   */
   PyTypeObject pytype;
 
+  /**
+   * The only instance of {@link Type}, used in Python.
+   */
   static PyTypeObject *instance; /* only instance to this type. */
+
+  /**
+   * Array of {@link MethodTableEntry} for this C++ class.
+   */
   static MethodTableEntry *methods;
+
+  /**
+   * Length of {@link Type::methods}.
+   */
   static Py_ssize_t methods_cnt;
+
+  /**
+   * Default `__getattr__` implementation.
+   * It will search for the method in the {@link MethodTableEntry}
+   * array and return the corresponding method wrapper if found.
+   */
   static PyObject *getattr(PyObject *, char *);
+
+  /**
+   * The module free function. It will be called when the module
+   * is deallocated.
+   */
   static void module_free(void);
+
+  /**
+   * Create a new instance of this type. It will call the default constructor of
+   * the C++ class.
+   */
   static PyObject *New(PyObject *mod);
 
 #define type_static_members(cpp_class)                                         \
@@ -88,7 +149,7 @@ template <typename CppClass> struct Type {
   ::cppbind::MethodTableEntry * ::cppbind::Type<cpp_class>::methods = nullptr; \
   template <> Py_ssize_t ::cppbind::Type<cpp_class>::methods_cnt = 0
 
-/*
+/**
  * This macro does very detailed initialization, therefore
  * should only be called inside a `RestInitFn` function.
  *
@@ -121,14 +182,16 @@ template <typename CppClass> struct Type {
     ty_ob->tp_getattr = ::cppbind::Type<cpp_class>::getattr;                   \
   } while (0)
 
-/*
+/**
  * The C++ class `cpp_class` needs to have the following public members
  * to be used as a mapping type in python:
  *
- * `IntLike size() const noexcept`
- * `bool contains(KeyType) const noexcept`
- * `ValueType get(KeyType)`
- * `void put(KeyType, ValueType)`
+ * <blockquote><pre>
+ *   Integer size() const noexcept;
+ *   bool contains(KeyType) const noexcept;
+ *   ValueType get(KeyType) const;
+ *   void put(KeyType, ValueType);
+ * </pre></blockquote>
  */
 #define type_init_mapping(module_name, cpp_class, cpp_class_name, ...)         \
   static PyMappingMethods CONCAT(mapping_methods_, cpp_class) = {              \
