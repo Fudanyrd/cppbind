@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.d": "makefile",
+        "Doxyfile": "properties",
         ".clang-format": "yaml"
     }
 }
