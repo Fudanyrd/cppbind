@@ -44,4 +44,4 @@ jobs:
         run: sh script/ci-lint-sh.sh
       - name: Generate Documentation
         working-directory: .
-        run: sh script/docs.sh
+        run: sh script/docs.sh doxygen

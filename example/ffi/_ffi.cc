@@ -97,6 +97,12 @@ PyObject *CppMap::put(const ::cppbind::Tuple &args) {
 type_static_members(CInt);
 type_static_members(CppMap);
 
+static int _ffi_clear(PyObject *) {
+  ::cppbind::Type<CInt>::module_free();
+  ::cppbind::Type<CppMap>::module_free();
+  return 0;
+}
+
 extern "C" PyObject *CppMap_New(PyObject *self, PyObject *compare_fn) {
   auto *type = cppbind::Type<CppMap>::instance;
   PyObject *ret = _PyObject_New((PyTypeObject *)type);
@@ -127,7 +133,7 @@ static int _ffi_rest_init(void) {
 }
 
 gen_modinit_fn_from_fns(
-    _ffi, &_ffi_rest_init, nullptr, nullptr, nullptr,
+    _ffi, &_ffi_rest_init, nullptr, nullptr, &_ffi_clear,
     gen_PyMethodDef_doc(CInt_New, ":returns: a new CInt object"),
     (PyMethodDef){"CInt_FromInt", (PyCFunction)CInt_FromInt, METH_O,
                   "Creates a new CInt object from an integer."},

@@ -247,6 +247,9 @@ PyObject *Type<CppClass>::getattr(PyObject *self, char *name) {
 template <typename CppClass> void Type<CppClass>::module_free() {
   /* decrement refcnt of self. */
   Py_DECREF(Type<CppClass>::instance);
+
+  /* Clear MethodWrapper type object. */
+  MethodWrapper<MethodTableEntry::method_t>::fini_method_type();
 }
 
 template <typename CppClass> PyObject *Type<CppClass>::New(PyObject *mod) {

@@ -148,12 +148,37 @@ private:
   Callable callable;
 
 public:
+  /**
+   * Python type for {@link MethodWrapper}.
+   */
   static PyTypeObject *method_type;
+
+  /**
+   * Initialize {@link MethodWrapper::method_type}.
+   *
+   * @param name: string literal of format "<package>.<class>"
+   */
   static void init_method_type(const char *name) {
     if (method_type == nullptr) {
       method_type = (PyTypeObject *)_PyObject_New((PyTypeObject *)&PyType_Type);
       initType(method_type, name);
     }
+  }
+
+  /**
+   * Free {@link MethodWrapper::method_type}.
+   * This will set {@link MethodWrapper::method_type} to nullptr,
+   * so only use this for module unload.
+   */
+  static void fini_method_type(void) {
+    if (method_type == nullptr) {
+      return;
+    }
+    auto count = Py_REFCNT(method_type);
+    for (decltype(count) i = 0; i < count; i++) {
+      Py_DECREF(method_type);
+    }
+    method_type = nullptr;
   }
 
 /**

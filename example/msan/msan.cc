@@ -74,7 +74,12 @@ static int _msan_rest_init(void) {
   return 0;
 }
 
-gen_modinit_fn_from_fns(msan, &_msan_rest_init, nullptr, nullptr, nullptr,
+static int _msan_clear(PyObject *) {
+  ::cppbind::Type<Resource>::module_free();
+  return 0;
+}
+
+gen_modinit_fn_from_fns(msan, &_msan_rest_init, nullptr, nullptr, &_msan_clear,
                         gen_PyMethodDef_doc(Resource_New,
                                             ":returns: a new Resource object"),
                         gen_PyMethodDef_doc(play, ":returns: None"))

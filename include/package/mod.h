@@ -43,8 +43,8 @@ template <> constexpr bool is_restini_fn<decltype(nullptr)>(void) {
   PyMODINIT_FUNC CONCAT(PyInit_, name)(void) {                                 \
     static PyMethodDef defs[] = {__VA_ARGS__, {nullptr, nullptr, 0, nullptr}}; \
     static PyModuleDef moddef = {                                              \
-        PyModuleDef_HEAD_INIT, #name,     "",         0, defs, 0,              \
-        (traverse_fn),         (free_fn), (clear_fn),                          \
+        PyModuleDef_HEAD_INIT, #name,      "",        0, defs, 0,              \
+        (traverse_fn),         (clear_fn), (free_fn),                          \
     };                                                                         \
     if (rest_init_fn != nullptr) {                                             \
       __static_assert(::cppbind::is_restini_fn<decltype(rest_init_fn)>());     \
