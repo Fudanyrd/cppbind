@@ -1,5 +1,7 @@
 #include <cinttypes>
+#include <cmath>
 #include <cstdio>
+#include <limits>
 
 #include <cppbind.h>
 #include <stl.h>
@@ -112,6 +114,49 @@ TEST(Long, InplaceArith) {
     test_inplace_or(a, b);
     test_inplace_xor(a, b);
   }
+}
+
+TEST(Float, InfAndNan) {
+  Float vinf = Float::inf();
+  ASSERT_TRUE(isinf((double)vinf));
+
+  Float vnan = Float::nan();
+  ASSERT_TRUE(isnan((double)vnan));
+}
+
+TEST(Float, CreateAndConvert) {
+
+#define test_for_ty(cpp_type)                                                  \
+  do {                                                                         \
+    cpp_type v = 0xfd;                                                         \
+    Float fv(v);                                                               \
+    cpp_type actual = (cpp_type)(fv);                                          \
+    ASSERT_EQ(actual, v);                                                      \
+  } while (0)
+
+  test_for_ty(int);
+  test_for_ty(unsigned int);
+#undef test_for_ty
+}
+
+TEST(Float, Arithmetic) {
+  double a = 3.0;
+  double b = 2.0;
+
+#define test_op(op)                                                            \
+  do {                                                                         \
+    Float fa(a), fb(b);                                                        \
+    fa op fb;                                                                  \
+    double expected = a;                                                       \
+    expected op b;                                                             \
+    ASSERT_EQ((double)fa, expected) << "Failed for operator " #op;             \
+  } while (0)
+
+  test_op(+=);
+  test_op(-=);
+  test_op(*=);
+  test_op(/=);
+#undef test_op
 }
 
 } /* namespace cppbind */

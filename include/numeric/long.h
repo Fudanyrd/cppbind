@@ -131,5 +131,4 @@ using Integer = Long;
 
 } /* namespace cppbind */
 
-#undef gen_inplace_op_impl
 #endif /* __NUMERIC_LONG_H__ */

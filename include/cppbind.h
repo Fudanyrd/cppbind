@@ -11,7 +11,9 @@
 #include "container/str.h"
 #include "container/tuple.h"
 
+#include "numeric/float.h"
 #include "numeric/long.h"
+#undef gen_inplace_op_impl
 
 #include "package/func.h"
 #include "package/invoke.h"
