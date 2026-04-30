@@ -1,6 +1,7 @@
 #ifndef __PACKAGE_TYPE_H__
 #define __PACKAGE_TYPE_H__ (1)
 
+#include <cstdio>
 #include <cstring>
 
 #include <common.h>
@@ -140,6 +141,65 @@ template <typename CppClass> struct Type {
    */
   static PyObject *New(PyObject *mod);
 
+#define type_gen_binary_op(CppClass, Operator)                                 \
+  [](PyObject *a, PyObject *b) -> PyObject * {                                 \
+    auto obj_a = CppClass::forward_or_convert(::cppbind::Object(a));           \
+    auto obj_b = CppClass::forward_or_convert(::cppbind::Object(b));           \
+    if (obj_a.ptr == nullptr || obj_b.ptr == nullptr) {                        \
+      PyErr_SetString(PyExc_TypeError,                                         \
+                      "arguments must be " STR(                                \
+                          CppClass) " or convertible to " STR(CppClass));      \
+      return nullptr;                                                          \
+    }                                                                          \
+    auto *cpp_a = reinterpret_cast<CppClass *>(obj_a.ptr);                     \
+    auto *cpp_b = reinterpret_cast<CppClass *>(obj_b.ptr);                     \
+    PyObject *ret = _PyObject_New(::cppbind::Type<CppClass>::instance);        \
+    if (ret != nullptr) {                                                      \
+      new (ret) CppClass();                                                    \
+      *(reinterpret_cast<CppClass *>(ret)) = (*cpp_a)Operator(*cpp_b);         \
+    } else {                                                                   \
+      PyErr_SetString(PyExc_RuntimeError, "failed to create result object");   \
+    }                                                                          \
+    return ret;                                                                \
+  }
+
+#define type_gen_unary_op(CppClass, Operator)                                  \
+  [](PyObject *a) -> PyObject * {                                              \
+    auto obj_a = CppClass::forward_or_convert(::cppbind::Object(a));           \
+    if (obj_a.ptr == nullptr) {                                                \
+      PyErr_SetString(PyExc_TypeError,                                         \
+                      "argument must be " STR(                                 \
+                          CppClass) " or convertible to " STR(CppClass));      \
+      return nullptr;                                                          \
+    }                                                                          \
+    auto *cpp_a = reinterpret_cast<CppClass *>(obj_a.ptr);                     \
+    PyObject *ret = _PyObject_New(::cppbind::Type<CppClass>::instance);        \
+    if (ret != nullptr) {                                                      \
+      new (ret) CppClass();                                                    \
+      *(reinterpret_cast<CppClass *>(ret)) = Operator(*cpp_a);                 \
+    } else {                                                                   \
+      PyErr_SetString(PyExc_RuntimeError, "failed to create result object");   \
+    }                                                                          \
+    return ret;                                                                \
+  }
+
+#define type_gen_inplace_binary_op(CppClass, Operator)                         \
+  [](PyObject *a, PyObject *b) -> PyObject * {                                 \
+    auto obj_b = CppClass::forward_or_convert(::cppbind::Object(b));           \
+    if (!PyObject_TypeCheck(a, ::cppbind::Type<CppClass>::instance) ||         \
+        obj_b.ptr == nullptr) {                                                \
+      PyErr_SetString(PyExc_TypeError,                                         \
+                      "arguments must be " STR(                                \
+                          CppClass) " or convertible to " STR(CppClass));      \
+      return nullptr;                                                          \
+    }                                                                          \
+    auto *cpp_a = reinterpret_cast<CppClass *>(a);                             \
+    auto *cpp_b = reinterpret_cast<CppClass *>(obj_b.ptr);                     \
+    *cpp_a Operator *cpp_b;                                                    \
+    obj_b.unwrap();                                                            \
+    return a;                                                                  \
+  }
+
 #define type_static_members(cpp_class)                                         \
   template <> PyTypeObject * ::cppbind::Type<cpp_class>::instance = nullptr;   \
   template <>                                                                  \
@@ -150,9 +210,9 @@ template <typename CppClass> struct Type {
  * This macro does very detailed initialization, therefore
  * should only be called inside a `RestInitFn` function.
  *
- * Param `module_name`: (const char *) name of the module.
- * Param `cpp_class`: the C++ class to be exposed.
- * Param `cpp_class_name`: (const char *) name of the class in python.
+ * @param `module_name`: (const char *) name of the module.
+ * @param `cpp_class`: the C++ class to be exposed.
+ * @param `cpp_class_name`: (const char *) name of the class in python.
  */
 #define type_init(module_name, cpp_class, cpp_class_name, ...)                 \
   static_assert(sizeof(::cppbind::Type<cpp_class>) == sizeof(PyTypeObject));   \
@@ -178,6 +238,77 @@ template <typename CppClass> struct Type {
       cppobj->~cpp_class();                                                    \
     };                                                                         \
     ty_ob->tp_getattr = ::cppbind::Type<cpp_class>::getattr;                   \
+  } while (0)
+
+#define type_float_unary_ops(X) X(-) X(+)
+#define type_float_binary_ops(X) X(+) X(-) X(*) X(/)
+#define type_float_inplace_ops(X) X(+=) X(-=) X(*=) X(/=)
+
+/**
+ * The C++ class `cpp_class` needs to support all integer operators,
+ * to be used as an integer type in python. The operators include:
+ *
+ * <h2>binary operators</h2>
+ * `+`, `-`, `*`, `/`, `%`, `^`, `|`, `&`, `>>`, `<<`
+ *  and their in-place operators.
+ *
+ * <h2>unary operators</h2>
+ * `~`, `int()` (convertible to `long long`), `-`
+ */
+#define type_integer_unary_ops(X) type_float_unary_ops(X) X(~)
+#define type_integer_binary_ops(X)                                             \
+  type_float_binary_ops(X) X(%) X(^) X(|) X(&) X(>>) X(<<)
+
+#define type_integer_inplace_ops(X)                                            \
+  type_float_inplace_ops(X) X(%=) X(^=) X(|=) X(&=) X(>>=) X(<<=)
+
+#define type_init_integer_ops(module_name, cpp_class, cpp_class_name)          \
+  static PyNumberMethods CONCAT(pynum_methods_, cpp_class) = {                 \
+      .nb_add = type_gen_binary_op(cpp_class, +),                              \
+      .nb_subtract = type_gen_binary_op(cpp_class, -),                         \
+      .nb_multiply = type_gen_binary_op(cpp_class, *),                         \
+      .nb_remainder = type_gen_binary_op(cpp_class, %),                        \
+      .nb_negative = type_gen_unary_op(cpp_class, -),                          \
+      .nb_positive = type_gen_unary_op(cpp_class, +),                          \
+      .nb_invert = type_gen_unary_op(cpp_class, ~),                            \
+      .nb_lshift = type_gen_binary_op(cpp_class, <<),                          \
+      .nb_rshift = type_gen_binary_op(cpp_class, >>),                          \
+      .nb_and = type_gen_binary_op(cpp_class, &),                              \
+      .nb_xor = type_gen_binary_op(cpp_class, ^),                              \
+      .nb_or = type_gen_binary_op(cpp_class, |),                               \
+      .nb_int = [](PyObject *self) -> PyObject * {                             \
+        const cpp_class *ptr = const_cast<const cpp_class *>(                  \
+            reinterpret_cast<cpp_class *>(self));                              \
+        long long value = (long long)*ptr;                                     \
+        return PyLong_FromLongLong(value);                                     \
+      },                                                                       \
+      .nb_inplace_add = type_gen_inplace_binary_op(cpp_class, +=),             \
+      .nb_inplace_subtract = type_gen_inplace_binary_op(cpp_class, -=),        \
+      .nb_inplace_multiply = type_gen_inplace_binary_op(cpp_class, *=),        \
+      .nb_inplace_remainder = type_gen_inplace_binary_op(cpp_class, %=),       \
+      .nb_inplace_lshift = type_gen_inplace_binary_op(cpp_class, <<=),         \
+      .nb_inplace_rshift = type_gen_inplace_binary_op(cpp_class, >>=),         \
+      .nb_inplace_and = type_gen_inplace_binary_op(cpp_class, &=),             \
+      .nb_inplace_xor = type_gen_inplace_binary_op(cpp_class, ^=),             \
+      .nb_inplace_or = type_gen_inplace_binary_op(cpp_class, |=),              \
+      .nb_floor_divide = type_gen_binary_op(cpp_class, /),                     \
+      .nb_inplace_floor_divide = type_gen_inplace_binary_op(cpp_class, /=),    \
+  };                                                                           \
+  do {                                                                         \
+    auto *instance = ::cppbind::Type<cpp_class>::instance;                     \
+    instance->tp_as_number = &CONCAT(pynum_methods_, cpp_class);               \
+    instance->tp_repr = [](PyObject *self) -> PyObject * {                     \
+      char buf[32];                                                            \
+      const cpp_class *ptr =                                                   \
+          const_cast<const cpp_class *>(reinterpret_cast<cpp_class *>(self));  \
+      long long value = (long long)*ptr;                                       \
+      sprintf(buf, "%lld", value);                                             \
+      auto *ret = PyUnicode_FromString(buf);                                   \
+      if (ret == nullptr) {                                                    \
+        PyErr_SetString(PyExc_RuntimeError, "failed to create string object"); \
+      }                                                                        \
+      return ret;                                                              \
+    };                                                                         \
   } while (0)
 
 /**
