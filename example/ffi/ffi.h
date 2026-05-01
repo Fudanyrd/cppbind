@@ -259,4 +259,17 @@ private:
 
 } /* namespace example */
 
+#define CInt_binary_operator_decl(Operator)                                    \
+  example::CInt operator Operator(const example::CInt &a,                      \
+                                  const example::CInt &b);
+
+type_integer_binary_ops(CInt_binary_operator_decl);
+
+#define CInt_unary_operator_decl(Operator)                                     \
+  example::CInt operator Operator(const example::CInt &a);
+
+type_integer_unary_ops(CInt_unary_operator_decl);
+
+#undef CInt_binary_operator_decl
+#undef CInt_unary_operator_decl
 #endif /* __EXAMPLE_FFI_H__ */

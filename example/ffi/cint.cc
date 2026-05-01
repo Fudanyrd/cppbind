@@ -3,6 +3,26 @@
  */
 #include "ffi.h"
 
+#define CInt_binary_operator(Operator)                                         \
+  example::CInt operator Operator(const example::CInt &a,                      \
+                                  const example::CInt &b) {                    \
+    example::CInt ret;                                                         \
+    ret.num = a.num Operator b.num;                                            \
+    return ret;                                                                \
+  }
+
+type_integer_binary_ops(CInt_binary_operator);
+#undef CInt_binary_operator
+
+#define CInt_unary_operator(Operator)                                          \
+  example::CInt operator Operator(const example::CInt &a) {                    \
+    example::CInt ret;                                                         \
+    ret.num = Operator(a.num);                                                 \
+    return ret;                                                                \
+  }
+type_integer_unary_ops(CInt_unary_operator);
+#undef CInt_unary_operator
+
 using cppbind::Long;
 using example::CInt;
 

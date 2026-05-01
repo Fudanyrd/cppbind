@@ -8,25 +8,6 @@ using cppbind::MethodWrapper;
 using example::CInt;
 using example::CppMap;
 
-#define CInt_binary_operator(Operator)                                         \
-  CInt operator Operator(const CInt &a, const CInt &b) {                       \
-    CInt ret;                                                                  \
-    ret.num = a.num Operator b.num;                                            \
-    return ret;                                                                \
-  }
-
-type_integer_binary_ops(CInt_binary_operator);
-#undef CInt_binary_operator
-
-#define CInt_unary_operator(Operator)                                          \
-  CInt operator Operator(const CInt &a) {                                      \
-    CInt ret;                                                                  \
-    ret.num = Operator(a.num);                                                 \
-    return ret;                                                                \
-  }
-type_integer_unary_ops(CInt_unary_operator);
-#undef CInt_unary_operator
-
 type_static_members(CInt);
 type_static_members(CppMap);
 
