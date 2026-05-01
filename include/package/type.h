@@ -7,6 +7,7 @@
 #include <common.h>
 #include <object.h>
 #include <package/func.h>
+#include <traceback.h>
 
 namespace cppbind {
 
@@ -73,6 +74,18 @@ public:
     return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
   }
 
+#define MethodTableEntry_build_args_except_lambda(cpp_class, method)           \
+  [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
+    cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
+    ::cppbind::Tuple tuple = ::cppbind::Tuple::from_args(args);                \
+    try {                                                                      \
+      auto ret = obj->method(tuple);                                           \
+      return ::cppbind::into<decltype(ret)>(ret).unwrap();                     \
+    }                                                                          \
+    except(std::exception &ex) { ::cppbind::PyErr_from_cpp_exception(ex); }    \
+    return nullptr;                                                            \
+  }
+
 #define MethodTableEntry_build_noarg_lambda(cpp_class, method)                 \
   [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
     cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
@@ -80,6 +93,27 @@ public:
     return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
   }
 
+#define MethodTableEntry_build_noarg_except_lambda(cpp_class, method)          \
+  [](PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {         \
+    cpp_class *obj = reinterpret_cast<cpp_class *>(self);                      \
+    try {                                                                      \
+      auto ret = obj->method();                                                \
+      return ::cppbind::into<decltype(ret)>(ret).unwrap();                     \
+    }                                                                          \
+    except(std::exception &ex) { ::cppbind::PyErr_from_cpp_exception(ex); }    \
+    return nullptr;                                                            \
+  }
+
+/**
+ * Generate a {@link MethodTableEntry} for a method with arguments.
+ * The method should take a {@link Tuple} as argument and
+ * be marked with `noexcept` because the generated method wrapper does not
+ * handle C++ exceptions.
+ *
+ * @param package_name the name of the package (string literal)
+ * @param cpp_class the C++ class that contains the method.
+ * @param method the method name.
+ */
 #define MethodTableEntry_build_args(package_name, cpp_class, method)           \
   MethodTableEntry_build(                                                      \
       package_name, cpp_class, method,                                         \
@@ -93,6 +127,32 @@ public:
 
 /**
  * The type wrapper for a C++ class.
+ *
+ * We use the {@link example:CInt} class to show how to
+ * initialize the python typeinfo for a C++ class,
+ * which can be found in `example/ffi/_ffi.cc`.
+ *
+ * <h3>In package source file</h3>
+ * We explicitly use `type_static_members` to set
+ * all static data members of {@link Type} to zero.
+ * This avoids link error: undefined symbol.
+ * <blockquote><pre>
+ *   type_static_members(example::CInt);
+ * </pre></blockquote>
+ *
+ * <h3>package initialization</h3>
+ * in an `int (*)(void)` initialization function, do:
+ * <blockquote><pre>
+ * static int initialize_package(void) {
+ *     type_init("_ffi", // package name
+ *               CInt,   // the C++ class to expose
+ *               "CInt"); // class name as it appears in python
+ *  // use default integer operators:
+ * type_init_integer_ops("_ffi", // package name
+ *                       CInt,  // the C++ class to expose
+ *                       "CInt"); // class name in python
+ * }
+ * </pre></blockquote>
  */
 template <typename CppClass> struct Type {
   Type() = default;
@@ -146,6 +206,8 @@ template <typename CppClass> struct Type {
     auto obj_a = CppClass::forward_or_convert(::cppbind::Object(a));           \
     auto obj_b = CppClass::forward_or_convert(::cppbind::Object(b));           \
     if (obj_a.ptr == nullptr || obj_b.ptr == nullptr) {                        \
+      obj_a.unwrap();                                                          \
+      obj_b.unwrap();                                                          \
       PyErr_SetString(PyExc_TypeError,                                         \
                       "arguments must be " STR(                                \
                           CppClass) " or convertible to " STR(CppClass));      \
@@ -160,6 +222,8 @@ template <typename CppClass> struct Type {
     } else {                                                                   \
       PyErr_SetString(PyExc_RuntimeError, "failed to create result object");   \
     }                                                                          \
+    obj_a.unwrap();                                                            \
+    obj_b.unwrap();                                                            \
     return ret;                                                                \
   }
 
@@ -180,6 +244,7 @@ template <typename CppClass> struct Type {
     } else {                                                                   \
       PyErr_SetString(PyExc_RuntimeError, "failed to create result object");   \
     }                                                                          \
+    obj_a.unwrap();                                                            \
     return ret;                                                                \
   }
 
@@ -317,7 +382,7 @@ template <typename CppClass> struct Type {
  *
  * <blockquote><pre>
  *   Integer size() const noexcept;
- *   bool contains(KeyType) const noexcept;
+ *   bool contains(KeyType) const;
  *   ValueType get(KeyType) const;
  *   void put(KeyType, ValueType);
  * </pre></blockquote>

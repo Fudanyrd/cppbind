@@ -30,7 +30,7 @@ inline PyObject *except_cpp_to_py(ExceptionTy &ex) {
 }
 
 #define map_except_cpp_py(X)                                                   \
-  X(std::invalid_argument, PyExc_ValueError)                                   \
+  X(std::invalid_argument, PyExc_TypeError)                                    \
   X(std::logic_error, PyExc_ValueError)                                        \
   X(std::runtime_error, PyExc_RuntimeError)                                    \
   X(std::out_of_range, PyExc_IndexError)                                       \
@@ -40,21 +40,10 @@ inline PyObject *except_cpp_to_py(ExceptionTy &ex) {
   X(std::range_error, PyExc_OverflowError)                                     \
   X(std::domain_error, PyExc_ValueError)
 
-#define gen_except_cpp_to_py(cpp_except, py_except)                            \
-  template <> inline PyObject *except_cpp_to_py(cpp_except &except) {          \
-    return py_except;                                                          \
-  }
-
-map_except_cpp_py(gen_except_cpp_to_py)
-#undef gen_except_cpp_to_py
-    inline int CONCAT(__placeholder_, __COUNTER__)(void) {
-  return 0;
-}
-
 /**
  * Set python exception from an `std::exception`.
  */
-void PyErr_from_cpp_exception(std::exception &ex);
+void PyErr_from_cpp_exception(std::exception &ex) noexcept;
 
 using AssertionError = std::logic_error;
 
