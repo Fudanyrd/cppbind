@@ -6,6 +6,17 @@
 using cppbind::Object;
 using example::CppMap;
 
+::cppbind::Object CppMap::forward_or_convert(const ::cppbind::Object &arg) {
+  if (arg.ptr == nullptr) {
+    PyErr_SetString(PyExc_ValueError, "argument cannot be null");
+    return ::cppbind::Object(nullptr);
+  }
+  if (PyObject_TypeCheck(arg.ptr, cppbind::Type<CppMap>::instance)) {
+    return arg;
+  }
+  return ::cppbind::Object(nullptr);
+}
+
 PyObject *CppMap::get(const ::cppbind::Tuple &args) const {
   if (args.size() == 0) {
     PyErr_SetString(PyExc_ValueError, "key cannot be empty");

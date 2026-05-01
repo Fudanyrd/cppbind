@@ -30,6 +30,24 @@ static PyObject *CInt_Init(PyObject *self) {
   return ::cppbind::Type<CInt>::New(self);
 }
 
+::cppbind::Object CInt::forward_or_convert(const ::cppbind::Object &arg) {
+  if (arg.ptr == nullptr) {
+    PyErr_SetString(PyExc_ValueError, "argument cannot be null");
+    return ::cppbind::Object(nullptr);
+  }
+  if (PyObject_TypeCheck(arg.ptr, cppbind::Type<CInt>::instance)) {
+    return arg;
+  } else if (PyLong_Check(arg.ptr)) {
+    PyObject *ret = _PyObject_New(cppbind::Type<CInt>::instance);
+    if (ret != nullptr) {
+      new (ret) CInt();
+      reinterpret_cast<CInt *>(ret)->num = PyLong_AsLong(arg.ptr);
+    }
+    return ::cppbind::Object(ret);
+  }
+  return ::cppbind::Object(nullptr);
+}
+
 extern "C" {
 
 PyObject *CInt_New(PyObject *self) { return CInt_Init(self); }

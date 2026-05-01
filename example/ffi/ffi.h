@@ -68,23 +68,7 @@ struct CInt {
    * integer, and convert it to {@link CInt} if possible. Otherwise, it will set
    * a `ValueError` and return an null {@link cppbind::Object}.
    */
-  static ::cppbind::Object forward_or_convert(const ::cppbind::Object &arg) {
-    if (arg.ptr == nullptr) {
-      PyErr_SetString(PyExc_ValueError, "argument cannot be null");
-      return ::cppbind::Object(nullptr);
-    }
-    if (PyObject_TypeCheck(arg.ptr, cppbind::Type<CInt>::instance)) {
-      return arg;
-    } else if (PyLong_Check(arg.ptr)) {
-      PyObject *ret = _PyObject_New(cppbind::Type<CInt>::instance);
-      if (ret != nullptr) {
-        new (ret) CInt();
-        reinterpret_cast<CInt *>(ret)->num = PyLong_AsLong(arg.ptr);
-      }
-      return ::cppbind::Object(ret);
-    }
-    return ::cppbind::Object(nullptr);
-  }
+  static ::cppbind::Object forward_or_convert(const ::cppbind::Object &arg);
 
 #define CInt_inplace_operator(Operator)                                        \
   CInt &operator Operator(const CInt & other) {                                \
@@ -241,16 +225,7 @@ struct CppMap {
    * Test whether `arg` is an instance of {@link CppMap}.
    *  Required for cppbind classes.
    */
-  static ::cppbind::Object forward_or_convert(const ::cppbind::Object &arg) {
-    if (arg.ptr == nullptr) {
-      PyErr_SetString(PyExc_ValueError, "argument cannot be null");
-      return ::cppbind::Object(nullptr);
-    }
-    if (PyObject_TypeCheck(arg.ptr, cppbind::Type<CppMap>::instance)) {
-      return arg;
-    }
-    return ::cppbind::Object(nullptr);
-  }
+  static ::cppbind::Object forward_or_convert(const ::cppbind::Object &arg);
 
 private:
   PyObject pyobj;

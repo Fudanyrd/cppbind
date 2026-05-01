@@ -266,10 +266,10 @@ template <typename CppClass> struct Type {
   }
 
 #define type_static_members(cpp_class)                                         \
-  template <> PyTypeObject * ::cppbind::Type<cpp_class>::instance = nullptr;   \
+  template <> PyTypeObject *cppbind::Type<cpp_class>::instance = nullptr;      \
   template <>                                                                  \
-  ::cppbind::MethodTableEntry * ::cppbind::Type<cpp_class>::methods = nullptr; \
-  template <> Py_ssize_t ::cppbind::Type<cpp_class>::methods_cnt = 0
+  ::cppbind::MethodTableEntry *cppbind::Type<cpp_class>::methods = nullptr;    \
+  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt = 0
 
 /**
  * This macro does very detailed initialization, therefore
@@ -387,7 +387,7 @@ template <typename CppClass> struct Type {
  *   void put(KeyType, ValueType);
  * </pre></blockquote>
  */
-#define type_init_mapping(module_name, cpp_class, cpp_class_name, ...)         \
+#define type_init_mapping(module_name, cpp_class, cpp_class_name)              \
   static PyMappingMethods CONCAT(mapping_methods_, cpp_class) = {              \
       .mp_length = [](PyObject *self) -> Py_ssize_t {                          \
         auto *cppobj = reinterpret_cast<cpp_class *>(self);                    \
