@@ -2,14 +2,17 @@
 #include <gtest/gtest.h>
 
 namespace cppbind {
+/*
+ * NOLINTBEGIN(readability-identifier-length)
+ */
 
 TEST(Tuple, Create) {
   Tuple empty{};
   ASSERT_EQ(empty.size(), 0);
 
   {
-    Long one(1l);
-    Long two(2l);
+    Long one(1L);
+    Long two(2L);
     Object none(Py_None);
     none.inc_ref();
 
@@ -22,4 +25,7 @@ TEST(Tuple, Create) {
   }
 }
 
+/*
+ * NOLINTEND(readability-identifier-length)
+ */
 } /* namespace cppbind */

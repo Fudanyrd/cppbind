@@ -5,107 +5,117 @@ using cppbind::Dict;
 using cppbind::Long;
 using cppbind::Object;
 
-static void dput(Dict &d, long int k, long int v) {
-  Object ko = Long(k).object();
-  Object vo = Long(v).object();
+/**
+ * The parameter `key` and `value` are not easily swappable.
+ */
+/* NOLINTBEGIN(bugprone-easily-swappable-parameters) */
 
-  d[ko] = vo;
+static void dput(Dict &dict, long int key, long int value) {
+  Object key_obj = Long(key).object();
+  Object value_obj = Long(value).object();
+
+  dict[key_obj] = value_obj;
 }
 
-static bool dget(Dict &d, long int k, long int *v) {
-  Object ko = Long(k).object();
-  Object vo = d[ko];
-  if (vo.ptr == Py_None) {
+static bool dget(Dict &dict, long int key, long int *value_ptr) {
+  Object key_obj = Long(key).object();
+  Object value_obj = dict[key_obj];
+  if (value_obj.ptr == Py_None) {
     return false;
   }
-  *v = static_cast<long int>(Long(vo));
+  *value_ptr = static_cast<long int>(Long(value_obj));
   return true;
 }
+/* NOLINTEND(bugprone-easily-swappable-parameters) */
 
 namespace cppbind {
+/* NOLINTBEGIN(readability-magic-numbers,readability-function-cognitive-complexity)
+ */
 
 TEST(Dict, GetAndSet) {
-  Dict d;
-  long int k = 0x1000;
-  for (long int v = 0x1000; v < 0x1010; v++) {
-    dput(d, k, v);
+  Dict dict;
+  long int key = 0x1000;
+  for (long int value = 0x1000; value < 0x1010; value++) {
+    dput(dict, key, value);
     long int got;
-    EXPECT_TRUE(dget(d, k, &got));
-    EXPECT_EQ(got, v);
+    EXPECT_TRUE(dget(dict, key, &got));
+    EXPECT_EQ(got, value);
   }
-  EXPECT_TRUE(!dget(d, 0x0, &k));
+  EXPECT_TRUE(!dget(dict, 0x0, &key));
 }
 
 TEST(Dict, ValueLifeTime) {
-  Dict d;
-  const long ki = 0x12345678;
-  Object k = Long(ki).object();
-  const auto krefcnt = k.ref_count();
+  Dict dict;
+  const long integer_key = 0x12345678;
+  Object key_obj = Long(integer_key).object();
+  const auto krefcnt = key_obj.ref_count();
   Py_ssize_t vrefcnt;
   {
-    const long int vi = ki + 1;
-    Object v = Long(vi).object();
-    vrefcnt = v.ref_count();
-    d.__setitem__(k, v);
-    ASSERT_EQ(v.ref_count(), vrefcnt + 1);
-    ASSERT_EQ(k.ref_count(), krefcnt + 1);
+    const long int integer_value = integer_key + 1;
+    Object value = Long(integer_value).object();
+    vrefcnt = value.ref_count();
+    dict.__setitem__(key_obj, value);
+    ASSERT_EQ(value.ref_count(), vrefcnt + 1);
+    ASSERT_EQ(key_obj.ref_count(), krefcnt + 1);
   }
-  d.clear();
-  ASSERT_EQ(k.ref_count(), krefcnt);
+  dict.clear();
+  ASSERT_EQ(key_obj.ref_count(), krefcnt);
   ASSERT_EQ(vrefcnt, vrefcnt);
 }
 
 TEST(Dict, DictLifeTime) {
-  const long int ki = 0x12345678; /* magic */
-  const long int vi = ki ^ 0xc0ffee;
+  const long int integer_key = 0x12345678; /* magic */
+  const long int integer_value = integer_key ^ 0xc0ffee;
 
-  Object value = Long(vi).object();
+  Object value = Long(integer_value).object();
   const auto vrefcnt = value.ref_count();
-  Object k = Long(ki).object();
-  const auto krefcnt = k.ref_count();
+  Object key = Long(integer_key).object();
+  const auto krefcnt = key.ref_count();
   {
-    Dict d;
-    d.__setitem__(k, value);
+    Dict dict;
+    dict.__setitem__(key, value);
     ASSERT_EQ(value.ref_count(), vrefcnt + 1);
-    ASSERT_EQ(k.ref_count(), krefcnt + 1);
+    ASSERT_EQ(key.ref_count(), krefcnt + 1);
   }
   ASSERT_EQ(value.ref_count(), vrefcnt);
-  ASSERT_EQ(k.ref_count(), krefcnt);
+  ASSERT_EQ(key.ref_count(), krefcnt);
 
   /* Try put the same kv twice. */ {
-    Dict d;
-    d.__setitem__(k, value);
-    d.__setitem__(k, value);
+    Dict dict;
+    dict.__setitem__(key, value);
+    dict.__setitem__(key, value);
     ASSERT_EQ(value.ref_count(), vrefcnt + 1);
-    ASSERT_EQ(k.ref_count(), krefcnt + 1);
+    ASSERT_EQ(key.ref_count(), krefcnt + 1);
   }
   ASSERT_EQ(value.ref_count(), vrefcnt);
-  ASSERT_EQ(k.ref_count(), krefcnt);
+  ASSERT_EQ(key.ref_count(), krefcnt);
 
   /* Try put the same kv into two dicts. */ do {
-    Dict d1;
-    Dict d2;
-    if (d1.object().ptr == d2.object().ptr) {
+    Dict dict1;
+    Dict dict2;
+    if (dict1.object().ptr == dict2.object().ptr) {
       FAIL() << "Two dicts should not share the same underlying PyDictObject.";
     }
-    d1.__setitem__(k, value);
-    d2.__setitem__(k, value);
+    dict1.__setitem__(key, value);
+    dict2.__setitem__(key, value);
     ASSERT_EQ(value.ref_count(), vrefcnt + 2);
-    ASSERT_EQ(k.ref_count(), krefcnt + 2);
-  } while (0);
+    ASSERT_EQ(key.ref_count(), krefcnt + 2);
+  } while (false);
   ASSERT_EQ(value.ref_count(), vrefcnt);
-  ASSERT_EQ(k.ref_count(), krefcnt);
+  ASSERT_EQ(key.ref_count(), krefcnt);
 }
 
 TEST(Dict, KeyIsValue) {
   Object obj = Long(0x12345678).object();
   const auto refcnt = obj.ref_count();
   {
-    Dict d;
-    d.__setitem__(obj, obj);
+    Dict dict;
+    dict.__setitem__(obj, obj);
     ASSERT_EQ(obj.ref_count(), refcnt + 2);
   }
   ASSERT_EQ(obj.ref_count(), refcnt + 0);
 }
 
+/* NOLINTEND(readability-magic-numbers,readability-function-cognitive-complexity)
+ */
 } /* namespace cppbind */

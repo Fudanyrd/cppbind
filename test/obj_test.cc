@@ -3,9 +3,28 @@
 #include <cppbind.h>
 #include <gtest/gtest.h>
 
+/**
+ * <h3>performance-unnecessary-copy-initialization</h3>
+ * TEST(Object, Create) should check assignment operator
+ * works as expected.
+ *
+ * <h3>bugprone-use-after-move</h3>
+ * TEST(Object, Move) checks that `Object::ptr` set to null
+ * after move.
+ *
+ * <h3>readability-function-cognitive-complexity</h3>
+ * We instead try to keep each test <b>easy to understand</b> (though
+ * it may still be lengthy).
+ */
+/**
+ * NOLINTBEGIN(performance-unnecessary-copy-initialization,
+ *             readability-function-cognitive-complexity,
+ *             bugprone-use-after-move)
+ */
+
 static PyObject *get_none_obj(void) { Py_RETURN_NONE; }
 
-/* create a PyLong of value 0. */
+/* create a PyLong of magic value. */
 static PyObject *get_long_obj(void) {
   long magic = 0x12345678;
   return PyLong_FromLong(magic);
@@ -48,6 +67,7 @@ TEST(Object, ImmortalObject) {
     }
     ASSERT_EQ(guard.ref_count(), refcnt);
 
+    /* self assignment should have no effect */
     guard = guard;
     ASSERT_EQ(guard.ref_count(), refcnt);
   } else {
@@ -62,18 +82,18 @@ TEST(Object, Move) {
     auto refcnt = guard.ref_count();
     ASSERT_TRUE(refcnt > 0);
 
-    Object o1 = guard;
-    ASSERT_EQ(o1.ref_count(), refcnt + 1);
+    Object obj1 = guard;
+    ASSERT_EQ(obj1.ref_count(), refcnt + 1);
 
     /*
-     * ownership transferred to o2.
-     * NOTE: o1 cannot be used (including assigning new value)
+     * ownership transferred to obj2.
+     * NOTE: obj1 cannot be used (including assigning new value)
      */
-    Object o2 = std::move(o1);
-    ASSERT_EQ(o2.ref_count(), refcnt + 1);
-    ASSERT_EQ(o1.ptr, nullptr);
+    Object obj2 = std::move(obj1);
+    ASSERT_EQ(obj2.ref_count(), refcnt + 1);
+    ASSERT_EQ(obj1.ptr, nullptr);
 
-    guard = std::move(o2);
+    guard = std::move(obj2);
     ASSERT_EQ(guard.ref_count(), refcnt);
 
     guard = std::move(guard);
@@ -102,3 +122,9 @@ TEST(Object, InplaceNumOp) {
 }
 
 } /* namespace cppbind */
+
+/**
+ * NOLINTEND(performance-unnecessary-copy-initialization,
+ *           readability-function-cognitive-complexity,
+ *           bugprone-use-after-move)
+ */

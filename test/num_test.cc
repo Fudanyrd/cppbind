@@ -8,11 +8,17 @@
 
 #include <gtest/gtest.h>
 
-typedef long int i64;
-typedef unsigned long long u64;
+using i64 = long int;
+using u64 = unsigned long long;
 
 #define pri_i64 "%" PRId64
 #define pri_u64 "%" PRIu64
+
+/*
+ * NOLINTBEGIN(readability-magic-numbers,
+ *             readability-isolate-declaration,
+ *             readability-identifier-length)
+ */
 
 #define gen_test_for_inplace_op(name, operator_)                               \
   static void CONCAT(test_, name)(i64 a, i64 b) {                              \
@@ -63,13 +69,13 @@ foreach_inplace(gen_decl_for_inplace_op);
 namespace cppbind {
 
 TEST(Long, ToString) {
-  Long long_obj(1234l);
+  Long long_obj(1234L);
   ASSERT_EQ(stringify(long_obj), "1234");
 
-  long_obj = Integer(-54321l);
+  long_obj = Integer(-54321L);
   ASSERT_EQ(stringify(long_obj), "-54321");
 
-  long_obj = Long(0l);
+  long_obj = Long(0L);
   ASSERT_EQ(stringify(long_obj), "0");
 }
 
@@ -162,3 +168,9 @@ TEST(Float, Arithmetic) {
 } /* namespace cppbind */
 
 foreach_inplace(gen_test_for_inplace_op)
+
+    /*
+     * NOLINTEND(readability-magic-numbers,
+     *           readability-isolate-declaration,
+     *           readability-identifier-length)
+     */

@@ -390,13 +390,13 @@ template <typename CppClass> struct Type {
 #define type_init_mapping(module_name, cpp_class, cpp_class_name, ...)         \
   static PyMappingMethods CONCAT(mapping_methods_, cpp_class) = {              \
       .mp_length = [](PyObject *self) -> Py_ssize_t {                          \
-        cpp_class *cppobj = reinterpret_cast<cpp_class *>(self);               \
-        const cpp_class *ro_cppobj = const_cast<const cpp_class *>(cppobj);    \
+        auto *cppobj = reinterpret_cast<cpp_class *>(self);                    \
+        const auto *ro_cppobj = const_cast<const cpp_class *>(cppobj);         \
         return static_cast<Py_ssize_t>(ro_cppobj->size());                     \
       },                                                                       \
       .mp_subscript = [](PyObject *self, PyObject *key) -> PyObject * {        \
-        cpp_class *cppobj = reinterpret_cast<cpp_class *>(self);               \
-        const cpp_class *ro_cppobj = const_cast<const cpp_class *>(cppobj);    \
+        auto *cppobj = reinterpret_cast<cpp_class *>(self);                    \
+        const auto *ro_cppobj = const_cast<const cpp_class *>(cppobj);         \
         if (!ro_cppobj->contains(key)) {                                       \
           PyErr_SetString(PyExc_KeyError, "key not found");                    \
           return nullptr;                                                      \
@@ -406,7 +406,7 @@ template <typename CppClass> struct Type {
       },                                                                       \
       .mp_ass_subscript = [](PyObject *self, PyObject *key,                    \
                              PyObject *value) -> int {                         \
-        cpp_class *cppobj = reinterpret_cast<cpp_class *>(self);               \
+        auto *cppobj = reinterpret_cast<cpp_class *>(self);                    \
         try {                                                                  \
           cppobj->put(key, value);                                             \
           return 0; /* success */                                              \

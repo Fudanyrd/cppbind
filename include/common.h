@@ -43,6 +43,7 @@
     switch (0) {                                                               \
     case (0):                                                                  \
     case (const_cond):                                                         \
+    default:                                                                   \
       break;                                                                   \
     }                                                                          \
   } while (0)

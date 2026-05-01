@@ -50,7 +50,7 @@ public:
    * Construct from an {@link Object} holding a python dict.
    */
   Dict(const Object &ob) : obj(ob) {
-    cppbind_check_internal(PyDict_check(ob.ptr));
+    cppbind_check_internal(PyDict_Check(ob.ptr));
   }
   ~Dict() = default;
 

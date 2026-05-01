@@ -4,6 +4,10 @@
 #include <gtest/gtest.h>
 #include <stl.h>
 
+/*
+ * NOLINTBEGIN(readability-identifier-length)
+ */
+
 namespace cppbind {
 
 TEST(Str, ConcatASCII) {
@@ -90,3 +94,7 @@ TEST(Bytes, Create) {
 }
 
 } // namespace cppbind
+
+/*
+ * NOLINTEND(readability-identifier-length)
+ */

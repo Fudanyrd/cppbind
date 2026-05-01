@@ -25,15 +25,15 @@ inline std::string stringify(const _Object_Ty &obj) {
 /* Print to STL output streams */
 namespace cppbind {
 
-std::ostream &operator<<(std::ostream &os, PyObject *obj);
+std::ostream &operator<<(std::ostream &stream, PyObject *obj);
 
-inline std::ostream &operator<<(std::ostream &os, const Object &obj) {
-  return os << obj.ptr;
+inline std::ostream &operator<<(std::ostream &stream, const Object &obj) {
+  return stream << obj.ptr;
 }
 
 template <typename _Object_Ty>
-inline std::ostream &operator<<(std::ostream &os, const _Object_Ty &obj) {
-  return os << obj.object();
+inline std::ostream &operator<<(std::ostream &stream, const _Object_Ty &obj) {
+  return stream << obj.object();
 }
 
 } /* namespace cppbind */

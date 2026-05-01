@@ -2,21 +2,27 @@
 
 #include <gtest/gtest.h>
 
+/* NOLINTBEGIN(readability-magic-numbers) */
+/**
+ * The magic numbers `0x12345678` is chosen because
+ * in python, its reference count is likely to be 1.
+ */
+
 namespace cppbind {
 
 TEST(List, Create) {
   List empty{};
 
   {
-    Long one(1l);
-    Long two(2l);
+    Long one(1L);
+    Long two(2L);
     Object none(Py_None);
     none.inc_ref();
 
-    List a(one);
-    List b(one, two);
-    List c(one, two, one);
-    List d(none, one, none);
+    List list_a(one);
+    List list_b(one, two);
+    List list_c(one, two, one);
+    List list_d(none, one, none);
   }
 }
 
@@ -55,8 +61,8 @@ TEST(List, Append) {
   List list;
   EXPECT_EQ(list.size(), 0);
 
-  Long one(1l);
-  Long two(2l);
+  Long one(1L);
+  Long two(2L);
   Object none(Py_None);
   none.inc_ref();
 
@@ -116,10 +122,10 @@ TEST(List, SameObjInList) {
 
   {
     List list;
-    Object it(obj);
-    list.append(it);
-    list.append(it);
-    (void)it.unwrap();
+    Object item(obj);
+    list.append(item);
+    list.append(item);
+    (void)item.unwrap();
     ASSERT_EQ(list.size(), 2);
     ASSERT_EQ(Py_REFCNT(obj), refcnt + 2);
   }
@@ -127,12 +133,13 @@ TEST(List, SameObjInList) {
 
   /* append the same item to several lists. */
   {
-    List l1, l2;
-    Object it(obj);
-    l1.append(it);
-    l2.append(it);
-    /* free the ownership taken by `it` */
-    (void)it.unwrap();
+    List list1;
+    List list2;
+    Object item(obj);
+    list1.append(item);
+    list2.append(item);
+    /* free the ownership taken by `item` */
+    (void)item.unwrap();
     ASSERT_EQ(Py_REFCNT(obj), refcnt + 2);
   }
 
@@ -140,4 +147,5 @@ TEST(List, SameObjInList) {
   Py_DECREF(obj);
 }
 
+/* NOLINTEND(readability-magic-numbers) */
 } /* namespace cppbind */
