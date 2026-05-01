@@ -141,6 +141,11 @@ struct CppMap {
       return PyObject_IsTrue(ret);
     }
 
+    /**
+     * If `a` and `b` cannot be compared by the provided compare function, it
+     * will set an python exception and return false. Otherwise, it will return
+     * true.
+     */
     bool comparable(PyObject *a, PyObject *b) const {
       auto *ret = PyObject_CallFunctionObjArgs(compare.ptr, a, b, nullptr);
       if (ret == nullptr) {

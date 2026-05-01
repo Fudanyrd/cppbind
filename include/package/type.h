@@ -128,7 +128,7 @@ public:
 /**
  * The type wrapper for a C++ class.
  *
- * We use the {@link example:CInt} class to show how to
+ * We use the `example:CInt` class to show how to
  * initialize the python typeinfo for a C++ class,
  * which can be found in `example/ffi/_ffi.cc`.
  *
