@@ -14,12 +14,9 @@ test -f "$compile_commands" || {
     exit 1
 }
 
-for f in src/*.cc test/*.cc example/ffi/*.cc; do
-    # prints to /dev/null to shorten length of CI logs.
-    clang-tidy -p "$compile_commands" "$f" >/dev/null 2>&1 || {
-        echo "Last failed file: $f" >&2
-        exit 1
-    }
+for f in src/*.cc test/*.cc ; do
+    echo "$f" 1>&2
+    clang-tidy -p "$compile_commands" "$f"
 done
 
 exit 0

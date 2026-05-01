@@ -8,6 +8,19 @@ using cppbind::MethodWrapper;
 using example::CInt;
 using example::CppMap;
 
+/**
+ * <h3>bugprone-easily-swappable-parameters</h3>
+ * Make the `type_init_mapping` macro work.
+ *
+ * <h3>readability-identifier-length</h3>
+ * For macros like `type_init_integer_ops`, using longer
+ * identifiers will not improve readability.
+ */
+/**
+ * NOLINTBEGIN(bugprone-easily-swappable-parameters,
+ *             readability-identifier-length)
+ */
+
 type_static_members(CInt);
 type_static_members(CppMap);
 
@@ -45,3 +58,8 @@ gen_modinit_fn_from_fns(
     (PyMethodDef){
         "CppMap_New", (PyCFunction)CppMap_New, METH_O,
         "Creates a new CppMap object with the given compare function."})
+
+    /**
+     * NOLINTEND(bugprone-easily-swappable-parameters,
+     *           readability-identifier-length)
+     */

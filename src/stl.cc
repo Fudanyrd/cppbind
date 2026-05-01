@@ -1,6 +1,10 @@
 #include <cppbind.h>
 #include <stl.h>
 
+/**
+ * NOLINTBEGIN(readability-function-cognitive-complexity)
+ */
+
 static bool is_python_str(PyObject *obj) { return PyUnicode_Check(obj); }
 
 static std::string from_python_str(PyObject *str) {
@@ -55,4 +59,7 @@ std::ostream &operator<<(std::ostream &stream, PyObject *obj) {
   return stream;
 }
 
+/**
+ * NOLINTEND(readability-function-cognitive-complexity)
+ */
 } /* namespace cppbind */

@@ -39,6 +39,9 @@ jobs:
       - name: Run Tests
         working-directory: .
         run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} sh script/ci-test.sh
+      - name: Run Clang Tidy
+        working-directory: .
+        run: sh script/ci-tidy.sh
       - name: Check Scripts
         working-directory: .
         run: sh script/ci-lint-sh.sh
