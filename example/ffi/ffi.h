@@ -118,24 +118,36 @@ struct CppMap {
    */
   struct Compare {
   private:
-    PyObject *compare;
+    ::cppbind::Object compare;
 
   public:
     /**
-     * @param compare: a Python callable that takes two arguments and
+     * @param comparefn: a Python callable that takes two arguments and
      * returns either `True` (first argument is less than the second argument)
      * or `False`.
      */
-    Compare(PyObject *compare) : compare(compare) { Py_INCREF(compare); }
-    ~Compare() { Py_DECREF(compare); }
+    Compare(PyObject *comparefn) : compare(comparefn) {
+      /* Borrow a reference of this compare function. */
+      compare.inc_ref();
+    }
+    ~Compare() = default;
 
     /**
      * @return true if `compare(a, b)` returns `True`.
      */
     bool operator()(PyObject *a, PyObject *b) const {
-      auto *ret = PyObject_CallFunctionObjArgs(compare, a, b, nullptr);
+      auto *ret = PyObject_CallFunctionObjArgs(compare.ptr, a, b, nullptr);
       assert(ret != nullptr);
       return PyObject_IsTrue(ret);
+    }
+
+    bool comparable(PyObject *a, PyObject *b) const {
+      auto *ret = PyObject_CallFunctionObjArgs(compare.ptr, a, b, nullptr);
+      if (ret == nullptr) {
+        return false;
+      }
+      Py_DECREF(ret);
+      return true;
     }
   };
 
@@ -144,15 +156,30 @@ struct CppMap {
    * returns either `True` (first argument is less than the second argument)
    * or `False`.
    */
-  CppMap(PyObject *compare_fn) : table(Compare(compare_fn)) {
-    Py_INCREF(compare_fn);
-  }
+  CppMap(PyObject *compare_fn) : table(Compare(compare_fn)) {}
   ~CppMap() = default;
+
+  /**
+   * Check whether `obj` can be compared with existing keys in the map using the
+   * comparator before `get` or `put`. If not, python exception is set
+   * accordingly.
+   *
+   * @return true if `obj` can be compared with existing keys
+   * in the map.
+   */
+  bool comparable(PyObject *obj) const {
+    PyObject *other = table.empty() ? obj : (table.begin()->first);
+    auto comparator = table.key_comp();
+    return comparator.comparable(obj, other);
+  }
 
   /**
    * @return the value associated with key, or `None` if key is not present.
    */
   PyObject *get(PyObject *key) const {
+    if (!comparable(key)) {
+      return nullptr;
+    }
     auto it = table.find(key);
     if (it == table.end()) {
       return Py_None;
@@ -161,7 +188,8 @@ struct CppMap {
   }
 
   /**
-   * @param key: a tuple of length 1, with the query key.
+   * @param key: a tuple of length 1, with the query key;
+   * or length 2 with the query key and default value.
    */
   PyObject *get(const ::cppbind::Tuple &key) const;
 
@@ -175,6 +203,9 @@ struct CppMap {
    * If key already exists, previous value will be overwrite.
    */
   PyObject *put(PyObject *key, PyObject *value) {
+    if (!comparable(key)) {
+      return nullptr;
+    }
     table[key] = value;
     Py_INCREF(value);
     return Py_None;
@@ -185,7 +216,14 @@ struct CppMap {
    *
    * @return test result of key's presence.
    */
-  bool contains(PyObject *key) const { return table.find(key) != table.end(); }
+  bool contains(PyObject *key) const {
+    if (!comparable(key)) {
+      /* comparable sets an expection; clears it. */
+      PyErr_Clear();
+      return false;
+    }
+    return table.find(key) != table.end();
+  }
 
   /**
    * This is required for a cppbind's mapping class.
@@ -193,19 +231,6 @@ struct CppMap {
    * @return size of the map.
    */
   size_t size() const { return table.size(); }
-
-  /**
-   * @param self: this map struct.
-   * @param key: the key to query.
-   */
-  static PyObject *getItem(PyObject *self, PyObject *key);
-
-  /**
-   * @param self: this map struct.
-   * @param key: the key in the map.
-   * @param value: new value associated with key.
-   */
-  static int setItem(PyObject *self, PyObject *key, PyObject *value);
 
   /**
    * Test whether `arg` is an instance of {@link CppMap}.

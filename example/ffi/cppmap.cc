@@ -13,6 +13,10 @@ PyObject *CppMap::get(const ::cppbind::Tuple &args) const {
   }
 
   Object key = args[0];
+  if (!comparable(key.ptr)) {
+    return nullptr;
+  }
+
   PyObject *default_value = args.size() > 1 ? (args[1].ptr) : Py_None;
 
   auto it = table.find(key.ptr);
@@ -31,6 +35,10 @@ PyObject *CppMap::put(const ::cppbind::Tuple &args) {
 
   Object key = args[0];
   Object value = args[1];
+  if (!comparable(key.ptr)) {
+    return nullptr;
+  }
+
   (void)put(key.ptr, value.ptr);
   return Py_None;
 }

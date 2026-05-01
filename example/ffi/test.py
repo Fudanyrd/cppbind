@@ -32,11 +32,24 @@ def test_cppmap():
     for i in range(4):
         assert table[i] == i * i
     assert table.get(4) is None
+    assert table.get(4, 'foo') == 'foo' # call with default key
     try:
         table[4]
         assert False, "Expected KeyError"
     except KeyError:
         pass
+
+    # check that CppMap handles non-comparable keys properly
+    try:
+        table['not comparable']
+        assert False, "Expected Some Error because cannot compare int and str"
+    except Exception as ex:
+        print(ex)
+    try:
+        table.put('not comparable', 'value')
+        assert False, "Expected Some Error because cannot compare int and str"
+    except Exception as ex:
+        print(ex)
     assert table.size() == 4
     del table
 
@@ -56,4 +69,5 @@ if __name__ == "__main__":
     test_new_del2()
     test_cppmap()
     del _ffi
+    print("All tests passed.")
 
