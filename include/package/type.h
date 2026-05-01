@@ -60,8 +60,8 @@ public:
                                  ::cppbind::MethodTableEntry::method_t> * {    \
             auto *ret = ::cppbind::MethodWrapper<                              \
                 ::cppbind::MethodTableEntry::method_t>::                       \
-                createInstance(self, (::cppbind::MethodTableEntry::method_t)(  \
-                                         meth_wrapper));                       \
+                create_instance(self, (::cppbind::MethodTableEntry::method_t)( \
+                                          meth_wrapper));                      \
             return reinterpret_cast<::cppbind::MethodWrapper<                  \
                 ::cppbind::MethodTableEntry::method_t> *>(ret);                \
           }))

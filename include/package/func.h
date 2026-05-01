@@ -76,7 +76,7 @@ template <> constexpr int CFunction_flags<PyCFunctionVecWithKeywords>(void) {
  *
  * // create a Method wrapper (accessible in python):
  * MethodWrapper *methodObject =
- * MethodWrapper::createInstance(&mybytes, &CBytes_bytes, "_mypackage");
+ * MethodWrapper::create_instance(&mybytes, &CBytes_bytes, "_mypackage");
  * </pre></blockquote>
  */
 template <typename Callable> struct MethodWrapper {
@@ -140,7 +140,7 @@ template <typename Callable> struct MethodWrapper {
    *
    * @return an instance of {@link MethodWrapper}, cast as `PyObject`.
    */
-  static PyObject *createInstance(PyObject *objref, Callable callable);
+  static PyObject *create_instance(PyObject *objref, Callable callable);
 
 private:
   PyObject pyobj;
@@ -203,8 +203,8 @@ public:
 };
 
 template <typename Callable>
-PyObject *MethodWrapper<Callable>::createInstance(PyObject *objref,
-                                                  Callable callable) {
+PyObject *MethodWrapper<Callable>::create_instance(PyObject *objref,
+                                                   Callable callable) {
   PyTypeObject *type =
       MethodWrapper<Callable>::method_type; /* initialized in package init
                                                function */
