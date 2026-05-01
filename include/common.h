@@ -28,7 +28,11 @@
  */
 #define cppbind_check_internal(cond) assert(cond)
 #else
-#define cppbind_check_internal(cond) ((void)0)
+#define cppbind_check_internal(cond) ((void)(cond))
+/**
+ * We do not use `((void) 0)` because expression `cond` may
+ * have side effects.
+ */
 #endif /* _GLIBCXX_ASSERTIONS */
 
 #define cppbind_assert(cond) assert(cond)

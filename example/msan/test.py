@@ -27,6 +27,8 @@ def test_invoke_cpp_function():
     # try create an instance again.
     a = Resource_New()
     del a
+    play(Resource_New(), a = 1)
+    play(Resource_New(), a = 1)
 
 
 def test_get_count():

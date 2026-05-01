@@ -5,6 +5,8 @@ project(cppbind HOMEPAGE_URL "https://github.com/Fudanyrd/cppbind")
 
 
 # Compiler Flags
+# we build position independent code by default, so that the library can be 
+# linked into shared libraries and executables without issues.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD "11" CACHE STRING "C++ standard to enforce")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
