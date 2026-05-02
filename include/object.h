@@ -193,6 +193,11 @@ public:
    * @return the reference to current object.
    */
   const Object &object() const { return *this; }
+
+  /**
+   * Check if the object holds a reference to a Python object.
+   */
+  operator bool() const { return ptr != nullptr; }
 };
 
 } /* namespace cppbind */

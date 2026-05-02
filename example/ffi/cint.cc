@@ -3,6 +3,25 @@
  */
 #include "ffi.h"
 
+/**
+ * <h3>bugprone-easily-swappable-parameters</h3>
+ * Make the `type_init_mapping` macro work.
+ *
+ * <h3>readability-identifier-naming</h3>
+ * `CInt_New` is a CPython function.
+ *
+ * <h3>readability-identifier-length</h3>
+ * For macros like `type_init_integer_ops`, using longer
+ * identifiers will not improve readability.
+ */
+/**
+ * NOLINTBEGIN(bugprone-easily-swappable-parameters,
+ *             readability-identifier-naming,
+ *             readability-identifier-length)
+ */
+
+type_static_members_declare(example::CInt);
+
 #define CInt_binary_operator(Operator)                                         \
   example::CInt operator Operator(const example::CInt &a,                      \
                                   const example::CInt &b) {                    \
@@ -59,3 +78,9 @@ PyObject *CInt_FromInt(PyObject *self, PyObject *arg) {
 }
 
 } /* extern "C" */
+
+/**
+ * NOLINTEND(bugprone-easily-swappable-parameters,
+ *           readability-identifier-naming,
+ *           readability-identifier-length)
+ */

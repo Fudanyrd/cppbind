@@ -271,6 +271,11 @@ template <typename CppClass> struct Type {
   ::cppbind::MethodTableEntry *cppbind::Type<cpp_class>::methods = nullptr;    \
   template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt = 0
 
+#define type_static_members_declare(cpp_class)                                 \
+  template <> PyTypeObject *cppbind::Type<cpp_class>::instance;                \
+  template <>::cppbind::MethodTableEntry *cppbind::Type<cpp_class>::methods;   \
+  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt
+
 /**
  * This macro does very detailed initialization, therefore
  * should only be called inside a `RestInitFn` function.

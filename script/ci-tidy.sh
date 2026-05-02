@@ -14,7 +14,7 @@ test -f "$compile_commands" || {
     exit 1
 }
 
-for f in src/*.cc test/*.cc ; do
+for f in src/*.cc test/*.cc example/ffi/*.cc ; do
     echo "$f" 1>&2
     clang-tidy -p "$compile_commands" "$f"
 done

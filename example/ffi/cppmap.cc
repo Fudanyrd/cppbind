@@ -3,6 +3,24 @@
  */
 #include "ffi.h"
 
+/**
+ * <h3>bugprone-easily-swappable-parameters</h3>
+ * Make the `type_init_mapping` macro work.
+ *
+ * <h3>readability-identifier-naming</h3>
+ * `CInt_New` is a CPython function.
+ *
+ * <h3>readability-identifier-length</h3>
+ * For macros like `type_init_integer_ops`, using longer
+ * identifiers will not improve readability.
+ */
+/**
+ * NOLINTBEGIN(bugprone-easily-swappable-parameters,
+ *             readability-identifier-naming,
+ *             readability-identifier-length)
+ */
+type_static_members_declare(example::CppMap);
+
 using cppbind::Object;
 using example::CppMap;
 
@@ -30,11 +48,11 @@ PyObject *CppMap::get(const ::cppbind::Tuple &args) const {
 
   PyObject *default_value = args.size() > 1 ? (args[1].ptr) : Py_None;
 
-  auto it = table.find(key.ptr);
-  if (it == table.end()) {
+  auto iter = table.find(key.ptr);
+  if (iter == table.end()) {
     return default_value;
   }
-  return it->second;
+  return iter->second;
 }
 
 PyObject *CppMap::put(const ::cppbind::Tuple &args) {
@@ -56,7 +74,13 @@ PyObject *CppMap::put(const ::cppbind::Tuple &args) {
 
 extern "C" PyObject *CppMap_New(PyObject *self, PyObject *compare_fn) {
   auto *type = cppbind::Type<CppMap>::instance;
-  PyObject *ret = _PyObject_New((PyTypeObject *)type);
+  PyObject *ret = _PyObject_New(type);
   new (ret) CppMap(compare_fn);
   return ret;
 }
+
+/**
+ * NOLINTEND(bugprone-easily-swappable-parameters,
+ *           readability-identifier-naming,
+ *           readability-identifier-length)
+ */
