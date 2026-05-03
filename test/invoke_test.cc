@@ -4,6 +4,8 @@ using std::vector;
 #include <cppbind.h>
 #include <gtest/gtest.h>
 
+/* NOLINTBEGIN(readability-identifier-length) */
+
 static long wield(long a, long b) { return 2 * a + b; }
 
 static void vec_push(vector<long> &vec, long value) { vec.push_back(value); }
@@ -19,8 +21,10 @@ template <> std::vector<long> &from<std::vector<long> &>(PyObject *obj) {
 }
 
 TEST(Invoke, ValueOnly) {
-  long val1 = 1L, val2 = 2L;
-  Long obj1(val1), obj2(val2);
+  long val1 = 1L;
+  long val2 = 2L;
+  Long obj1(val1);
+  Long obj2(val2);
 
   Tuple args(obj1, obj2);
 
@@ -32,8 +36,10 @@ TEST(Invoke, ValueOnly) {
 }
 
 TEST(InvokeVec, ValueOnly) {
-  long val1 = 1L, val2 = 2L;
-  Long obj1(val1), obj2(val2);
+  long val1 = 1L;
+  long val2 = 2L;
+  Long obj1(val1);
+  Long obj2(val2);
 
   PyObject *args[] = {
       obj1.object().ptr,
@@ -69,3 +75,5 @@ TEST(InvokeVec, RefAndValue) {
 }
 
 } /* namespace cppbind */
+
+/* NOLINTEND(readability-identifier-length) */
