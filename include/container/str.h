@@ -137,6 +137,9 @@ public:
   Py_ssize_t size(void) const { return PyUnicode_GetLength(obj.ptr); }
 };
 
+/**
+ * {@link Str} concatenation.
+ */
 inline Str operator+(const Str &lhs, const Str &rhs) {
   PyObject *ptr = PyUnicode_Concat(lhs.object().ptr, rhs.object().ptr);
   return Str{Object(ptr)};

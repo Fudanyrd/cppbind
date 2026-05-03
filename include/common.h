@@ -74,6 +74,9 @@ template <typename _Tp> constexpr bool is_char_ty(void) { return false; }
 #define instantiate_char_checker(ty)                                           \
   instantiate_type_checker(is_char_ty, ty, true)
 // clang-format off
+/**
+ * Template specialization for char types.
+ */
 char_types( instantiate_char_checker )
     // clang-format on
 
@@ -105,7 +108,9 @@ unsigned_integer_types( instantiate_unsigned_integer_checker )
   return is_signed_integer_ty<_Tp>() || is_unsigned_integer_ty<_Tp>();
 }
 
-/* Floating point types check */
+/**
+ * Floating point types check
+ */
 template <typename _Tp> constexpr bool is_fp_ty(void) { return false; }
 
 #define floating_point_types(X) X(float) X(double)

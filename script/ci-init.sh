@@ -17,4 +17,15 @@ apt-get -y install \
   wget \
   shellcheck
 
+test -d /usr/bin || {
+  mkdir -p /usr/bin
+  export PATH="/usr/bin:$PATH"
+}
+which clang-format || {
+  ln -sf "$( which clang-format-15 )" /usr/bin/clang-format
+}
+which clang-tidy || {
+  ln -sf "$( which clang-tidy-15 )" /usr/bin/clang-tidy
+}
+
 exit 0

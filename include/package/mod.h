@@ -27,8 +27,19 @@ struct Module;
  */
 typedef int (*RestInitFn)(void);
 
+/**
+ * Test if a function pointer type is `RestInitFn` or `nullptr`.
+ */
 template <typename FnPtr> constexpr bool is_restini_fn(void) { return false; }
+
+/**
+ * Specialization for `RestInitFn`
+ */
 template <> constexpr bool is_restini_fn<RestInitFn>(void) { return true; }
+
+/**
+ * Specialization for `nullptr`.
+ */
 template <> constexpr bool is_restini_fn<decltype(nullptr)>(void) {
   return true;
 }

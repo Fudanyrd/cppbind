@@ -48,8 +48,15 @@ struct PyVecCallArgs;
  */
 template <size_t Idx, typename RetType, typename Head>
 struct PyArgs<Idx, RetType, Head> {
+  /**
+   * Initialization from {@link Tuple}.
+   */
   PyArgs(const Tuple &tp) : tuple(tp) {}
 
+  /**
+   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
+   * call the function `fn` with the converted argument.
+   */
   RetType call(std::function<RetType(Head)> fn) {
     PyObject *obj = tuple[Idx] /* cppbind::Object */.ptr;
     return fn(from<Head>(obj));
@@ -61,8 +68,14 @@ struct PyArgs<Idx, RetType, Head> {
   virtual size_t size() const { return Idx + 1; }
 
 protected:
+  /**
+   * @return reference to {@link tuple}.
+   */
   virtual const Tuple &get_args() const { return tuple; }
 
+  /**
+   * Reference to the function call arguments.
+   */
   const Tuple &tuple;
 };
 
@@ -71,19 +84,41 @@ protected:
  */
 template <size_t Idx, typename RetType, typename Head>
 struct PyVecCallArgs<Idx, RetType, Head> {
+  /**
+   * Initialization from vector call arguments. `nargs`
+   * should be equal to `size()`.
+   */
   PyVecCallArgs(PyObject *const *args, Py_ssize_t nargs)
-      : args(args), nargs(nargs) {}
+      : args(args), nargs(nargs) {
+    if (nargs != Idx + 1) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
 
+  /**
+   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
+   * call the function `fn` with the converted argument.
+   */
   RetType call(std::function<RetType(Head)> fn) {
     cppbind_check_internal(Idx < static_cast<size_t>(nargs));
     PyObject *obj = args[Idx];
     return fn(from<Head>(obj));
   }
 
+  /**
+   * @return expected argument count.
+   */
   virtual size_t size() const { return Idx + 1; }
 
 protected:
+  /**
+   * Pointer to the function call arguments.
+   */
   PyObject *const *args;
+
+  /**
+   * Actual number of arguments (expected # arguments is size()).
+   */
   Py_ssize_t nargs;
 };
 
@@ -94,9 +129,17 @@ template <size_t Idx, typename RetType, typename Head, typename... RestElements>
 struct PyArgs<Idx, RetType, Head, RestElements...>
     : public PyArgs<Idx + 1, RetType, RestElements...> {
 
+  /**
+   * Initialization from arguments (tuple)
+   */
   PyArgs<Idx, RetType, Head, RestElements...>(const Tuple &tp)
       : PyArgs<Idx + 1, RetType, RestElements...>(tp) {}
 
+  /**
+   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
+   * call the function `fn` with the converted argument and the rest of the
+   * arguments.
+   */
   RetType call(std::function<RetType(Head, RestElements...)> fn) {
     auto lower_fn = [&](RestElements... args) {
       const auto &tuple = get_args();
@@ -106,10 +149,17 @@ struct PyArgs<Idx, RetType, Head, RestElements...>
     return PyArgs<Idx + 1, RetType, RestElements...>::call(lower_fn);
   }
 
+  /**
+   * @return expected argument count.
+   */
   size_t size() const override {
     return PyArgs<Idx + 1, RetType, RestElements...>::size();
   }
 
+protected:
+  /**
+   * @return reference to `this->tuple`.
+   */
   const Tuple &get_args() const override {
     return PyArgs<Idx + 1, RetType, RestElements...>::get_args();
   }
@@ -122,10 +172,18 @@ template <size_t Idx, typename RetType, typename Head, typename... RestElements>
 struct PyVecCallArgs<Idx, RetType, Head, RestElements...>
     : public PyVecCallArgs<Idx + 1, RetType, RestElements...> {
 
+  /**
+   * Initialization from vector call arguments. `nargs`
+   * should be equal to `size()`.
+   */
   PyVecCallArgs<Idx, RetType, Head, RestElements...>(PyObject *const *args,
                                                      Py_ssize_t nargs)
       : PyVecCallArgs<Idx + 1, RetType, RestElements...>(args, nargs) {}
 
+  /**
+   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
+   * call the function `fn` with the converted argument.
+   */
   RetType call(std::function<RetType(Head, RestElements...)> fn) {
     auto lower_fn = [&](RestElements... args) {
       return fn(from<Head>(this->args[Idx]), args...);
@@ -134,6 +192,9 @@ struct PyVecCallArgs<Idx, RetType, Head, RestElements...>
     return PyVecCallArgs<Idx + 1, RetType, RestElements...>::call(lower_fn);
   }
 
+  /**
+   * @return expected argument count.
+   */
   size_t size() const override {
     return PyVecCallArgs<Idx + 1, RetType, RestElements...>::size();
   }
