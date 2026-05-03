@@ -10,6 +10,11 @@ static long wield(long a, long b) { return 2 * a + b; }
 
 static void vec_push(vector<long> &vec, long value) { vec.push_back(value); }
 
+static const long MAGIC_NUM = 42L;
+static long magic() {
+  return MAGIC_NUM;
+}
+
 namespace cppbind {
 
 /**
@@ -35,6 +40,17 @@ TEST(Invoke, ValueOnly) {
   ASSERT_EQ(actual, wield(val1, val2));
 }
 
+/**
+ * Check specialization for no-argument functions.
+ */
+TEST(Invoke, NoArg) {
+  Tuple args;
+  std::function<long()> fn = magic;
+  PyArgs<0, long> py_args(args);
+  long actual = py_args.call(fn);
+  ASSERT_EQ(actual, magic());
+}
+
 TEST(InvokeVec, ValueOnly) {
   long val1 = 1L;
   long val2 = 2L;
@@ -50,6 +66,7 @@ TEST(InvokeVec, ValueOnly) {
   PyVecCallArgs<0, long, long, long> py_args(args, 2);
   long ret = py_args.call(fn);
   ASSERT_EQ(ret, wield(val1, val2));
+  ASSERT_EQ(ret, wield(val1, val2));
 }
 
 /**
@@ -59,7 +76,7 @@ TEST(InvokeVec, ValueOnly) {
  */
 TEST(InvokeVec, RefAndValue) {
   std::vector<long> vec;
-  Long value(1L);
+  Long value(MAGIC_NUM);
 
   PyObject *args[] = {
       reinterpret_cast<PyObject *>(&vec),
@@ -71,7 +88,20 @@ TEST(InvokeVec, RefAndValue) {
   py_args.call(fn);
 
   ASSERT_EQ(vec.size(), 1);
-  ASSERT_EQ(vec[0], 1L);
+  ASSERT_EQ(vec[0], MAGIC_NUM);
+
+  py_args.call(fn);
+  ASSERT_EQ(vec.size(), 2);
+  ASSERT_EQ(vec[0], MAGIC_NUM);
+  ASSERT_EQ(vec[1], MAGIC_NUM);
+}
+
+TEST(InvokeVec, NoArg) {
+  PyObject *args[] = {};
+  std::function<long()> fn = magic;
+  PyVecCallArgs<0, long> py_args(args, 0);
+  long ret = py_args.call(fn);
+  ASSERT_EQ(ret, magic());
 }
 
 } /* namespace cppbind */

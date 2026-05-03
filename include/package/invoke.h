@@ -44,6 +44,46 @@ template <size_t Idx, typename RetType, typename... Elements>
 struct PyVecCallArgs;
 
 /**
+ * Specialization for no argument functions.
+ */
+template <size_t Idx, typename RetType>
+struct PyArgs<Idx, RetType> {
+  /**
+   * Initialization from {@link Tuple}.
+   */
+  PyArgs(const Tuple &tp) {
+    if (tp.size() != 0) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
+
+  /**
+   * Call the function `fn` with no argument.
+   */
+  RetType call(std::function<RetType()> fn) { return fn(); }
+};
+
+/**
+ * Specialization for no argument vector-call functions (`METH_FASTCALL`).
+ */
+template <size_t Idx, typename RetType>
+struct PyVecCallArgs<Idx, RetType> {
+  /**
+   * Initialization from vector call arguments. `nargs` should be 0.
+   */
+  PyVecCallArgs(PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs != 0) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
+
+  /**
+   * Call the function `fn` with no argument.
+   */
+  RetType call(std::function<RetType()> fn) { return fn(); }
+};
+
+/**
  * Base of the ending the recursion of inheritance.
  */
 template <size_t Idx, typename RetType, typename Head>
