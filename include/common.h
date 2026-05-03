@@ -66,6 +66,9 @@ constexpr char version[] = "0.0.1";
   template <> constexpr bool checker_name<ty>(void) { return (ret); }          \
   /* end of checker */
 
+/**
+ * @return `true` if `_Tp` is a char type; `false` otherwise.
+ */
 template <typename _Tp> constexpr bool is_char_ty(void) { return false; }
 #define char_types(X) X(signed char) X(unsigned char) X(char16_t) X(char32_t)
 #define instantiate_char_checker(ty)                                           \
@@ -114,11 +117,6 @@ floating_point_types( instantiate_fp_checker )
     template <typename _Tp>
     constexpr bool is_numeric_ty(void) {
   return is_integer_ty<_Tp>() || is_fp_ty<_Tp>();
-}
-
-template <typename InheritedTy, typename BaseTy> bool isa(const BaseTy &ref) {
-  const InheritedTy *ptr = dynamic_cast<const InheritedTy *>(&ref);
-  return ptr != nullptr;
 }
 
 } /* namespace cppbind */

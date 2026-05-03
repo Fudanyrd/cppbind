@@ -21,14 +21,6 @@ namespace cppbind {
     return nullptr;                                                            \
   } while (0)
 
-/**
- * Map a C++ exception type to a Python exception type.
- */
-template <typename ExceptionTy>
-inline PyObject *except_cpp_to_py(ExceptionTy &ex) {
-  return PyExc_Exception;
-}
-
 #define map_except_cpp_py(X)                                                   \
   X(std::invalid_argument, PyExc_TypeError)                                    \
   X(std::logic_error, PyExc_ValueError)                                        \
@@ -44,8 +36,6 @@ inline PyObject *except_cpp_to_py(ExceptionTy &ex) {
  * Set python exception from an `std::exception`.
  */
 void PyErr_from_cpp_exception(std::exception &ex) noexcept;
-
-using AssertionError = std::logic_error;
 
 } /* namespace cppbind */
 

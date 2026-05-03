@@ -20,7 +20,7 @@ struct Module;
 
 #define sizeof_array(a) ((sizeof(a)) / sizeof(a[0]))
 
-/*
+/**
  * A function pointer type for module initialization functions.
  * It should return `0` on succcess; set python `ImportError`
  * and return non-zero on failure.

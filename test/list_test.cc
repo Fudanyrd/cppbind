@@ -147,5 +147,24 @@ TEST(List, SameObjInList) {
   Py_DECREF(obj);
 }
 
+TEST(List, ObjectRef) {
+  List list;
+  Object none(Py_None);
+  none.inc_ref();
+
+  list.append(none);
+  {
+    Object ref = list[0];
+    ASSERT_EQ(ref.ptr, Py_None);
+  }
+
+  constexpr long long value = 0x12345678;
+  list[0] = Long(value).object();
+  {
+    Long actual{list[0]};
+    ASSERT_EQ((long long)actual, value);
+  }
+}
+
 /* NOLINTEND(readability-magic-numbers) */
 } /* namespace cppbind */
