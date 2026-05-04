@@ -21,6 +21,7 @@ jobs:
               cc: "/usr/bin/gcc",
               cxx: "/usr/bin/g++",
               format: "/usr/bin/clang-format-15",
+              std: "11",
             }
           - {
               name: "Ubuntu 24.04 Clang",
@@ -28,6 +29,15 @@ jobs:
               cc: "/usr/bin/clang-15",
               cxx: "/usr/bin/clang++-15",
               format: "/usr/bin/clang-format-15",
+              std: "11",
+            }
+          - {
+              name: "Ubuntu 24.04 Clang C++17",
+              os: "self-hosted",
+              cc: "/usr/bin/clang-15",
+              cxx: "/usr/bin/clang++-15",
+              format: "/usr/bin/clang-format-15",
+              std: "17",
             }
 
     steps:
@@ -36,9 +46,12 @@ jobs:
       - name: Install Dependencies
         working-directory: .
         run: sudo sh script/ci-init.sh
+      - name: Check Formatting
+        working-directory: .
+        run: sh script/ci-format.sh
       - name: Run Tests
         working-directory: .
-        run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} sh script/ci-test.sh
+        run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} CXXSTD=${{matrix.config.std}} sh script/ci-test.sh
       - name: Run Clang Tidy
         working-directory: .
         run: sh script/ci-tidy.sh
