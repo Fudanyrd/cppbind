@@ -1,6 +1,7 @@
 #ifndef __PACKAGE_TYPE_H__
 #define __PACKAGE_TYPE_H__ (1)
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -47,10 +48,61 @@ public:
   gen_t gen; /* generator of method wrapper, takes self as argument. */
 
   /**
+   * Default copy constructor. It is sufficient because all members of
+   * {@link MethodTableEntry} are trivially copyable.
+   */
+  MethodTableEntry(const MethodTableEntry &) = default;
+
+  /**
+   * Default assignment operator. It is sufficient because all members of
+   * {@link MethodTableEntry} are trivially copyable.
+   */
+  MethodTableEntry &operator=(const MethodTableEntry &) = default;
+
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator==(const MethodTableEntry &other) const {
+    return strcmp(name, other.name) == 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator!=(const MethodTableEntry &other) const {
+    return !(*this == other);
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator<(const MethodTableEntry &other) const {
+    return strcmp(name, other.name) < 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator<=(const MethodTableEntry &other) const {
+    return strcmp(name, other.name) <= 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator>(const MethodTableEntry &other) const {
+    return strcmp(name, other.name) > 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator>=(const MethodTableEntry &other) const {
+    return strcmp(name, other.name) >= 0;
+  }
+
+  /**
    * @param name the name of the method. It should be a string literal.
    * @param gen the generator of {@link MethodWrapper}.
    */
-  MethodTableEntry(const char *name, gen_t gen) : name(name), gen(gen) {}
+  MethodTableEntry(const char *name, gen_t gen) : name(name), gen(gen) {
+    cppbind_assert(name != nullptr && gen != nullptr);
+  }
 
 #define MethodTableEntry_build(package_name, cpp_class, method, meth_wrapper)  \
   ::cppbind::MethodTableEntry(                                                 \
@@ -179,6 +231,8 @@ template <typename CppClass> struct Type {
 
   /**
    * Array of {@link MethodTableEntry} for this C++ class.
+   * After 975153cc, the methods are sorted by name in ascending
+   * order to speed up searching in `getattr`.
    *
    * It is allocated statically, so it should not be freed.
    */
@@ -287,6 +341,9 @@ template <typename CppClass> struct Type {
  * This macro does very detailed initialization, therefore
  * should only be called inside a `RestInitFn` function.
  *
+ * After 975153cc, the methods are sorted by name to speed up
+ * searching in `getattr`.
+ *
  * @param `module_name`: (const char *) name of the module.
  * @param `cpp_class`: the C++ class to be exposed.
  * @param `cpp_class_name`: (const char *) name of the class in python.
@@ -315,6 +372,9 @@ template <typename CppClass> struct Type {
       cppobj->~cpp_class();                                                    \
     };                                                                         \
     ty_ob->tp_getattr = ::cppbind::Type<cpp_class>::getattr;                   \
+    auto *base_ptr = ::cppbind::Type<cpp_class>::methods;                      \
+    auto *end_ptr = base_ptr + ::cppbind::Type<cpp_class>::methods_cnt;        \
+    ::std::sort(base_ptr, end_ptr);                                            \
   } while (0)
 
 #define type_float_unary_ops(X) X(-) X(+)
@@ -442,12 +502,18 @@ PyObject *Type<CppClass>::getattr(PyObject *self, char *name) {
   }
 
   auto count = Type<CppClass>::methods_cnt;
-  for (Py_ssize_t i = 0; i < count; i++) {
-    if (strcmp(name, methods[i].name) == 0) {
-      auto *ret = reinterpret_cast<PyObject *>(methods[i].gen(self));
-      return ret;
-    }
+  auto *base = Type<CppClass>::methods;
+  /**
+   * Create a fake MethodTableEntry. Cannot initialize with (name, nullptr)
+   * because of the assertion in the constructor of MethodTableEntry.
+   */
+  auto target = MethodTableEntry(name, (MethodTableEntry::gen_t)42);
+  auto *iter = std::lower_bound(base, base + count, target);
+  if (iter != base + count && 0 == strcmp(iter->name, name)) {
+    auto *ret = reinterpret_cast<PyObject *>(iter->gen(self));
+    return ret;
   }
+
   PyErr_SetString(PyExc_AttributeError, "attribute not found");
   return nullptr;
 }

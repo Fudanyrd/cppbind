@@ -251,6 +251,10 @@ template <> struct CppObject<void> {
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = methods;       \
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt =            \
         sizeof(methods) / sizeof(::cppbind::MethodTableEntry);                 \
+    auto *base = ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods;    \
+    auto *end =                                                                \
+        base + ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt;  \
+    ::std::sort(base, end);                                                    \
   } while (0)
 
 /**

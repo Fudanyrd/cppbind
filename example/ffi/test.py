@@ -18,6 +18,17 @@ def test_new_del2():
     del a
 
 
+def test_nonexist_attr():
+    magic = 0xc0ffee
+    a = CInt_FromInt(magic)
+    try:
+        b = a.value() # TYPO
+        assert False, "Expected AttributeError"
+    except AttributeError as ex:
+        print(ex)
+    del a
+
+
 def _compare(a: int, b: int) -> bool:
     ":returns: True if a < b else False"
     # print(a, b)
@@ -67,6 +78,7 @@ def test_cppmap():
 if __name__ == "__main__":
     test_new_del()
     test_new_del2()
+    test_nonexist_attr()
     test_cppmap()
     del _ffi
     print("All tests passed.")
