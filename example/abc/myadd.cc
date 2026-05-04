@@ -9,20 +9,7 @@ using cppbind::Long;
 using cppbind::Object;
 using cppbind::Tuple;
 
-extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
-  __static_assert(cppbind::CFunction_flags<decltype(&myadd)>());
-  assert(args && PyTuple_Check(args));
-  Tuple list = Tuple::from_args(args);
-
-  if (list.size() != 2) {
-    PyErr_SetString(PyExc_TypeError, "expected exactly 2 arguments");
-    return nullptr;
-  }
-
-  Long a(list[0].ptr), b(list[1].ptr);
-  a += b;
-  return a.object().unwrap();
-}
+static long myadd(long a, long b) noexcept { return a + b; }
 
 extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&mysum)>());
@@ -97,7 +84,8 @@ extern "C" PyObject *always_throw(PyObject *self, PyObject *const *args,
 
 gen_modinit_fn_from_fns(
     /* name */ myabc, nullptr, nullptr, nullptr, nullptr,
-    gen_PyMethodDef_doc(myadd, ":returns: sum of two integers"),
+    gen_builtin_function_def(myadd, ":returns: sum of two integers", long, long,
+                             long),
     gen_PyMethodDef_doc(mysum, ":returns: sum of all integers"),
     gen_PyMethodDef_doc(mysum_vec, ":returns: sum of all integers"),
     gen_PyMethodDef_doc(kwarg_names,

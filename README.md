@@ -13,21 +13,12 @@ cppbind provides C++ classes that abstract away the boilerplate of CPython's C A
 ```cpp
 #include <cppbind.h>
 
-using cppbind::Long;
-using cppbind::Object;
+static long myadd(long a, long b) noexcept { return a + b; }
 
-extern "C" PyObject *myadd(PyObject *self, PyObject *args) {
-    Tuple list = Tuple::from_args(args);
-
-    if (list.size() != 2) {
-        PyErr_SetString(PyExc_TypeError, "expected exactly 2 arguments");
-        return nullptr;
-    }
-
-    Long a(list[0].ptr), b(list[1].ptr);
-    a += b;
-    return a.object().unwrap();
-}
+gen_modinit_fn_from_fns(
+    /* name */ myext, nullptr, nullptr, nullptr, nullptr,
+    gen_builtin_function_def(myadd, ":returns: sum of two integers", long, long,
+                             long));
 ```
 
 See `example/abc/` for a complete working example.

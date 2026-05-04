@@ -238,6 +238,54 @@ struct PyVecCallArgs<Idx, RetType, Head, RestElements...>
   }
 };
 
+/**
+ * Call a fast call function and convert the return value to `PyObject *`.
+ * This is specialized for those returning `void` to return `Py_None`.
+ */
+template <typename RetTy, std::__enable_if_t<is_void_ty<RetTy>(), bool> = true>
+PyObject *fastcall_and_into(void (*func)(PyObject *, PyObject *const *,
+                                         Py_ssize_t),
+                            PyObject *const *args, Py_ssize_t nargs) {
+  func(nullptr, args, nargs);
+  Py_RETURN_NONE;
+}
+
+/**
+ * Call a fast call function and convert the return value to `PyObject *`.
+ */
+template <typename RetTy, std::__enable_if_t<!is_void_ty<RetTy>(), bool> = true>
+PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
+                                          Py_ssize_t),
+                            PyObject *const *args, Py_ssize_t nargs) {
+  RetTy ret = func(nullptr, args, nargs);
+  return into<RetTy>(ret).unwrap();
+}
+
+#define gen_builtin_function(cpp_function, RetType, ...)                       \
+  [](PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {  \
+    RetType (*func)(PyObject *, PyObject *const *, Py_ssize_t);                \
+    func = (RetType(*)(PyObject *, PyObject *const *,                          \
+                       Py_ssize_t))([](PyObject *self, PyObject *const *args,  \
+                                       Py_ssize_t nargs) -> RetType {          \
+      return ::cppbind::PyVecCallArgs<0, RetType, ##__VA_ARGS__>(args, nargs)  \
+          .call(cpp_function);                                                 \
+    });                                                                        \
+    try {                                                                      \
+      return ::cppbind::fastcall_and_into<RetType>(func, args, nargs);         \
+    } catch (::std::exception & ex) {                                          \
+      ::cppbind::PyErr_from_cpp_exception(ex);                                 \
+      return nullptr;                                                          \
+    }                                                                          \
+  }
+
+#define gen_builtin_function_def(cpp_function, func_doc, RetType, ...)         \
+  {                                                                            \
+    #cpp_function,                                                             \
+        (PyCFunction)(PyCFunctionVec)(gen_builtin_function(                    \
+            cpp_function, RetType, ##__VA_ARGS__)),                            \
+        METH_FASTCALL, func_doc                                                \
+  }
+
 } /* namespace cppbind */
 
 #endif /* __PACKAGE_INVOKE_H__ */
