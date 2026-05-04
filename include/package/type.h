@@ -169,11 +169,18 @@ template <typename CppClass> struct Type {
 
   /**
    * The only instance of {@link Type}, used in Python.
+   *
+   * <i>reference count management</i> at package initialization,
+   * it is created with reference count 1, and it is never decref-ed
+   * until the module object is destroyed, invoking {@link module_free},
+   * which will decref it.
    */
   static PyTypeObject *instance; /* only instance to this type. */
 
   /**
    * Array of {@link MethodTableEntry} for this C++ class.
+   *
+   * It is allocated statically, so it should not be freed.
    */
   static MethodTableEntry *methods;
 

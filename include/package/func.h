@@ -38,7 +38,7 @@ template <> constexpr int CFunction_flags<PyCFunctionVecWithKeywords>(void) {
   return METH_FASTCALL | METH_KEYWORDS;
 }
 
-#pragma GCC diagnostic ignored "-Wpedantic"
+// #pragma GCC diagnostic ignored "-Wpedantic"
 #define gen_PyMethodDef(fn)                                                    \
   (PyMethodDef) {                                                              \
     #fn, (PyCFunction)fn, ::cppbind::CFunction_flags<decltype(&fn)>(), nullptr \

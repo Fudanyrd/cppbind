@@ -11,9 +11,7 @@ static long wield(long a, long b) { return 2 * a + b; }
 static void vec_push(vector<long> &vec, long value) { vec.push_back(value); }
 
 static const long MAGIC_NUM = 42L;
-static long magic() {
-  return MAGIC_NUM;
-}
+static long magic() { return MAGIC_NUM; }
 
 namespace cppbind {
 

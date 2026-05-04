@@ -15,6 +15,7 @@
 #include "numeric/long.h"
 #undef gen_inplace_op_impl
 
+#include "package/bind.h"
 #include "package/func.h"
 #include "package/invoke.h"
 #include "package/mod.h"

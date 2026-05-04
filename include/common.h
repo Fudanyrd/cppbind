@@ -124,6 +124,18 @@ floating_point_types( instantiate_fp_checker )
   return is_integer_ty<_Tp>() || is_fp_ty<_Tp>();
 }
 
+/**
+ * @return `true` if `_Tp` is `void`; `false` otherwise.
+ */
+template <typename T> constexpr bool is_void_ty() { return false; }
+
+/**
+ * Specialization for `void` type.
+ *
+ * @return `true` if `_Tp` is `void`; `false` otherwise.
+ */
+template <> constexpr bool is_void_ty<void>() { return true; }
+
 } /* namespace cppbind */
 
 #endif /* __COMMON_H__ */

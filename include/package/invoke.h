@@ -46,8 +46,7 @@ struct PyVecCallArgs;
 /**
  * Specialization for no argument functions.
  */
-template <size_t Idx, typename RetType>
-struct PyArgs<Idx, RetType> {
+template <size_t Idx, typename RetType> struct PyArgs<Idx, RetType> {
   /**
    * Initialization from {@link Tuple}.
    */
@@ -66,8 +65,7 @@ struct PyArgs<Idx, RetType> {
 /**
  * Specialization for no argument vector-call functions (`METH_FASTCALL`).
  */
-template <size_t Idx, typename RetType>
-struct PyVecCallArgs<Idx, RetType> {
+template <size_t Idx, typename RetType> struct PyVecCallArgs<Idx, RetType> {
   /**
    * Initialization from vector call arguments. `nargs` should be 0.
    */
