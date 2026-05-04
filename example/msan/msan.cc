@@ -50,7 +50,7 @@ int Resource::count = 0;
 extern "C" PyObject *play(PyObject *self, PyObject *args, PyObject *kwargs) {
   Tuple tuple = Tuple::from_args(args);
   Dict dict = Dict::from_kwargs(kwargs);
-  return Py_None;
+  Py_RETURN_NONE;
 }
 
 extern "C" PyObject *Resource_New(PyObject *self) {

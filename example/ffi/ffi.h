@@ -171,7 +171,7 @@ struct CppMap {
     }
     auto it = table.find(key);
     if (it == table.end()) {
-      return Py_None;
+      Py_RETURN_NONE;
     }
     return it->second;
   }
@@ -197,7 +197,7 @@ struct CppMap {
     }
     table[key] = value;
     Py_INCREF(value);
-    return Py_None;
+    Py_RETURN_NONE;
   }
 
   /**

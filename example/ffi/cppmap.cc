@@ -69,7 +69,7 @@ PyObject *CppMap::put(const ::cppbind::Tuple &args) {
   }
 
   (void)put(key.ptr, value.ptr);
-  return Py_None;
+  Py_RETURN_NONE;
 }
 
 extern "C" PyObject *CppMap_New(PyObject *self, PyObject *compare_fn) {
