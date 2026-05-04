@@ -8,7 +8,11 @@ project(cppbind HOMEPAGE_URL "https://github.com/Fudanyrd/cppbind")
 # we build position independent code by default, so that the library can be 
 # linked into shared libraries and executables without issues.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD "11" CACHE STRING "C++ standard to enforce")
+# set '-std=' when CMAKE_CXX_STANDARD is not set. Default to C++11.
+if (DEFINED CMAKE_CXX_STANDARD)
+else()
+  set(CMAKE_CXX_STANDARD 11)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
