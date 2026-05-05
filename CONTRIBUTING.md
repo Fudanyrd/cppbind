@@ -24,7 +24,14 @@ Use the prefix `CPPBIND_` for all custom cmake variables.
 
 * Style is based on [.clang-format](./.clang-format).
 * Use Camel case names for `struct`(s) and `class`(es).
-* Use `__<namespace>_<file name>__` as the macro defined at the start and end of header files.
+* The macro defined at the start and end of header files:
+```py
+relpath; # relative to the include directory, e.g. container/list.h
+header_def = '__' + \
+  relpath.replace('/', '_').replace('.', '_').upper() +\
+  '__'
+# e.g. __CONTAINER_LIST_H__
+```
 * Use snake case names for functions and variables.
 * Use GNU-style [single-line comments](https://www.gnu.org/software/grub/manual/grub-dev/grub-dev.html#Comments) and
   [JavaDoc multi-line comments](https://www.doxygen.nl/manual/docblocks.html).
