@@ -2,6 +2,7 @@
 #define __CAST_H__ (1)
 
 #include <common.h>
+#include <type_traits>
 
 #include <numeric/long.h>
 #include <object.h>
@@ -99,9 +100,35 @@ namespace cppbind {
 /**
  * Convert C++ integer types to Python objects.
  */
-template <typename _Tp> inline Object into(_Tp value) {
+template <typename _Tp, std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  /* For internal testing, trigger an assertion failure. */
+  cppbind_check_internal(0 &&
+                         "unsupported type for conversion to Python object");
+  /* For external use, set TypeError, and return Object with nullptr. */
+  PyErr_SetString(PyExc_TypeError,
+                  "unsupported type for conversion to Python object");
+  return Object{nullptr};
+}
+
+/**
+ * Specialization for integer types. It will convert the integer to
+ * a Python long object.
+ */
+template <typename _Tp, std::__enable_if_t<is_integer_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
   __static_assert(is_integer_ty<_Tp>());
   return Long(value).object();
+}
+
+/**
+ * Specialization for floating point types. It will convert the floating point
+ * number to a Python float object.
+ */
+template <typename _Tp, std::__enable_if_t<is_fp_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  __static_assert(is_fp_ty<_Tp>());
+  return Float(value).object();
 }
 
 /**

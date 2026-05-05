@@ -43,9 +43,7 @@ public:
   /**
    * Create an `Object` that holds a borrowed reference to `Py_None`.
    */
-  static Object none() {
-    return Object(Py_NewRef(Py_None));
-  }
+  static Object none() { return Object(Py_NewRef(Py_None)); }
 
   ~Object() {
     /*
