@@ -10,6 +10,9 @@ namespace cppbind {
 #define type_bool_inplace_ops(X) X(&=) X(|=) X(^=)
 #define type_bool_unary_ops(X) X(!) X(~)
 
+/**
+ * Python bool type.
+ */
 struct Bool {
 private:
   Object obj;
@@ -17,11 +20,20 @@ private:
   bool eval() const { return obj.ptr == Py_True; }
 
 public:
+  /**
+   * Construct bool wrapper from boolean value.
+   */
   explicit Bool(bool value)
       : obj(value ? Py_NewRef(Py_True) : Py_NewRef(Py_False)) {}
 
+  /**
+   * Construct bool wrapper from object pointer.
+   */
   Bool(PyObject *pt) : obj(pt) {}
 
+  /**
+   * Cast to C++ bool type.
+   */
   operator bool() const { return eval(); }
 
   /**
@@ -46,7 +58,14 @@ public:
 #undef Bool_gen_inplace_op
 };
 
+/**
+ * Unary operator not
+ */
 inline Bool operator!(const Bool &b) { return Bool(!static_cast<bool>(b)); }
+
+/**
+ * Unary operator not
+ */
 inline Bool operator~(const Bool &b) { return Bool(!static_cast<bool>(b)); }
 
 #define Bool_gen_binary_op(op)                                                 \
