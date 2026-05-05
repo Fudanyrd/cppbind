@@ -165,6 +165,21 @@ TEST(Float, Arithmetic) {
 #undef test_op
 }
 
+TEST(bool, Logic) {
+  Bool t(true), f(false);
+
+  EXPECT_TRUE(t);
+
+  /* binary ops. */
+  EXPECT_TRUE(t | f);
+  EXPECT_TRUE(t ^ f);
+  EXPECT_FALSE(t && f);
+
+  /* unary ops. */
+  Bool v2 = ~f;
+  EXPECT_TRUE(v2);
+}
+
 } /* namespace cppbind */
 
 foreach_inplace(gen_test_for_inplace_op)
