@@ -1,7 +1,7 @@
 #ifndef __PACKAGE_MOD_H__
 #define __PACKAGE_MOD_H__ (1)
 
-#include <common.h>
+#include "common.h"
 
 namespace cppbind {
 

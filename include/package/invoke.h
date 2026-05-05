@@ -4,12 +4,12 @@
 #include <functional> /* std::function */
 #include <methodobject.h>
 
-#include <cast.h> /* cppbind::from and cppbind::into */
-#include <common.h>
-#include <container/dict.h>
-#include <container/list.h>
-#include <container/tuple.h>
-#include <numeric/long.h>
+#include "cast.h" /* cppbind::from and cppbind::into */
+#include "common.h"
+#include "container/dict.h"
+#include "container/list.h"
+#include "container/tuple.h"
+#include "numeric/long.h"
 
 extern "C" {
 typedef PyObject *(*PyCArgsFunctionWithKeywords)(PyObject *self,

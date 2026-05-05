@@ -1,11 +1,11 @@
 #ifndef __CAST_H__
 #define __CAST_H__ (1)
 
-#include <common.h>
 #include <type_traits>
 
-#include <numeric/long.h>
-#include <object.h>
+#include "common.h"
+#include "numeric/long.h"
+#include "object.h"
 
 /**
  * PyObject * => C++ types via this template function.
@@ -100,9 +100,10 @@ namespace cppbind {
 /**
  * Convert C++ integer types to Python objects.
  */
-template <
-    typename _Tp,
-    std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>(), bool> = true>
+template <typename _Tp,
+          std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>() &&
+                                 !is_object_ty<_Tp>() && !is_pair_ty<_Tp>(),
+                             bool> = true>
 inline Object into(_Tp value) {
   /* For internal testing, trigger an assertion failure. */
   cppbind_check_internal(0 &&
@@ -111,6 +112,11 @@ inline Object into(_Tp value) {
   PyErr_SetString(PyExc_TypeError,
                   "unsupported type for conversion to Python object");
   return Object{nullptr};
+}
+
+template <typename _Tp, std::__enable_if_t<is_object_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  return value.object();
 }
 
 /**
@@ -137,6 +143,13 @@ inline Object into(_Tp value) {
  * Build {@link cppbind::Object} from <pre>PyObject *</pre>.
  */
 template <> inline Object into<PyObject *>(PyObject *pt) { return Object{pt}; }
+
+template <typename _Tp, std::__enable_if_t<is_pair_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  Object first_obj = into<decltype(value.first)>(value.first);
+  Object second_obj = into<decltype(value.second)>(value.second);
+  return Tuple(first_obj, second_obj).object();
+}
 
 } /* namespace cppbind */
 

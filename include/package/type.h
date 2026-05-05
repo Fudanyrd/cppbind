@@ -5,10 +5,10 @@
 #include <cstdio>
 #include <cstring>
 
-#include <common.h>
-#include <object.h>
-#include <package/func.h>
-#include <traceback.h>
+#include "common.h"
+#include "object.h"
+#include "package/func.h"
+#include "traceback.h"
 
 namespace cppbind {
 

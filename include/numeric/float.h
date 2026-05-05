@@ -3,11 +3,11 @@
 
 #include <floatobject.h>
 
-#include <common.h>
-#include <object.h>
+#include "common.h"
+#include "object.h"
 
-#include <numeric/long.h>
-#include <numeric/macro.h>
+#include "numeric/long.h"
+#include "numeric/macro.h"
 
 namespace cppbind {
 

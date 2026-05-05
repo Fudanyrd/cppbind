@@ -5,6 +5,7 @@
 #include <cassert>
 #include <setjmp.h>
 #include <stdint.h>
+#include <utility>
 
 #if defined __cplusplus
 #if __cplusplus < 201100L
@@ -162,6 +163,18 @@ template <typename _Tp> constexpr bool is_object_ty() { return false; }
 object_types( instantiate_object_checker );
 // clang-format on
 #undef instantiate_object_checker
+
+template <typename _Tp> constexpr bool is_pair_ty_impl(...) { return false; }
+template <typename _Tp>
+constexpr auto is_pair_ty_impl(int) -> decltype(std::declval<_Tp>().first,
+                                                std::declval<_Tp>().second,
+                                                true) {
+  return true;
+}
+
+template <typename T> constexpr bool is_pair_ty() {
+  return is_pair_ty_impl<T>(0);
+}
 
 } /* namespace cppbind */
 

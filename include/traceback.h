@@ -5,7 +5,7 @@
 
 #include <pyerrors.h>
 
-#include <common.h>
+#include "common.h"
 
 /* Exception handling */
 namespace cppbind {

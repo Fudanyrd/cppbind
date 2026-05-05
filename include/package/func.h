@@ -5,9 +5,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <cast.h>
-#include <object.h>
-#include <package/invoke.h>
+#include "cast.h"
+#include "object.h"
+#include "package/invoke.h"
 
 namespace cppbind {
 
