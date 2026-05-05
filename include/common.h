@@ -67,6 +67,17 @@ constexpr char version[] = "0.0.1";
   /* end of checker */
 
 /**
+ * @return `true` if `_Tp` is a boolean type; `false` otherwise.
+ */
+template <typename _Tp> constexpr bool is_bool_ty(void) { return false; }
+#define bool_types(X) X(bool)
+#define instantiate_bool_checker(ty) instantiate_type_checker(is_bool_ty, ty, true)
+// clang-format off
+bool_types( instantiate_bool_checker );
+// clang-format on
+#undef instantiate_bool_checker
+
+/**
  * @return `true` if `_Tp` is a char type; `false` otherwise.
  */
 template <typename _Tp> constexpr bool is_char_ty(void) { return false; }
@@ -135,6 +146,21 @@ template <typename T> constexpr bool is_void_ty() { return false; }
  * @return `true` if `_Tp` is `void`; `false` otherwise.
  */
 template <> constexpr bool is_void_ty<void>() { return true; }
+
+/**
+ * @return true if `_Tp` has `Object object()`.
+ */
+template <typename _Tp> constexpr bool is_object_ty() { return false; }
+
+#define object_types(X) X(Bytes) X(Dict) X(List) X(Str) X(Tuple) X(Object)
+#define instantiate_object_checker(ty) \
+struct ty; \
+instantiate_type_checker(is_object_ty, ty, true)
+
+// clang-format off
+object_types( instantiate_object_checker );
+// clang-format on
+#undef instantiate_object_checker
 
 } /* namespace cppbind */
 

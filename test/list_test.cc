@@ -16,8 +16,7 @@ TEST(List, Create) {
   {
     Long one(1L);
     Long two(2L);
-    Object none(Py_None);
-    none.inc_ref();
+    Object none = Object::none();
 
     List list_a(one);
     List list_b(one, two);
@@ -31,8 +30,7 @@ TEST(List, GetAndSet) {
   constexpr int len = 4;
 
   {
-    Object none(Py_None);
-    none.inc_ref();
+    Object none = Object::none();
     for (int i = 0; i < len; i++) {
       list.append(none);
     }
@@ -63,8 +61,7 @@ TEST(List, Append) {
 
   Long one(1L);
   Long two(2L);
-  Object none(Py_None);
-  none.inc_ref();
+  Object none = Object::none();
 
   list.append(one);
   EXPECT_EQ(list.size(), 1);
@@ -149,8 +146,7 @@ TEST(List, SameObjInList) {
 
 TEST(List, ObjectRef) {
   List list;
-  Object none(Py_None);
-  none.inc_ref();
+  Object none = Object::none();
 
   list.append(none);
   {

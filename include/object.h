@@ -40,6 +40,13 @@ public:
     other.ptr = nullptr;
   }
 
+  /**
+   * Create an `Object` that holds a borrowed reference to `Py_None`.
+   */
+  static Object none() {
+    return Object(Py_NewRef(Py_None));
+  }
+
   ~Object() {
     /*
      * After move, it might be nullptr.
