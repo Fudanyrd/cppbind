@@ -3,7 +3,7 @@
 
 #include <map>
 
-#include <cppbind.h>
+#include <cppbind-sys.h>
 
 extern "C" {
 /* CInt python built-in functions */

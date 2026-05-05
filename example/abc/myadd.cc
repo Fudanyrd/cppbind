@@ -1,8 +1,7 @@
 #include <cassert>
 #include <iostream>
 
-#include <cppbind.h>
-#include <stl.h>
+#include <cppbind-sys.h>
 
 using cppbind::List;
 using cppbind::Long;

@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <map>
 
-#include <cppbind.h>
+#include <cppbind-sys.h>
 
 using cppbind::Dict;
 using cppbind::Long;

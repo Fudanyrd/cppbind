@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 /* Remove this comment: next headers of this library. */
-#include <object.h>
+#include "object.h"
 
 /* Remove this comment: everything goes into the namespace. */
 namespace cppbind {} /* namespace cppbind */

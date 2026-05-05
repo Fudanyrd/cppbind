@@ -2,7 +2,6 @@
 #include <map>
 
 #include "ffi.h"
-#include <cppbind.h>
 
 using cppbind::MethodWrapper;
 using example::CInt;

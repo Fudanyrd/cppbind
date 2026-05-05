@@ -144,6 +144,9 @@ inline Object into(_Tp value) {
  */
 template <> inline Object into<PyObject *>(PyObject *pt) { return Object{pt}; }
 
+/**
+ * Convert C++ pair to tuple of size 2.
+ */
 template <typename _Tp, std::__enable_if_t<is_pair_ty<_Tp>(), bool> = true>
 inline Object into(_Tp value) {
   Object first_obj = into<decltype(value.first)>(value.first);

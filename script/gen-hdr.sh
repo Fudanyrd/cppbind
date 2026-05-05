@@ -12,6 +12,7 @@ test -d include || {
 cd include
 
 # detect system headers.
+echo '' > cppbind-sys.h
 find . -name \*.h -print0 | xargs -0 cat | grep -E '#include <(.+)>' | sort | uniq > ./sys.inc
 
 # Perform copy-paste preprocessing to resolve all #include "..." 
@@ -27,9 +28,21 @@ def preprocess(ifile: str):
     if ifile in processed:
         return
     processed.add(ifile)
+    header_def = '__' + ifile.replace('/', '_').replace('.', '_').upper() + '__'
+    exclude_stmts = [f'#ifndef {header_def}',
+                     f'#define {header_def} (1)',
+                     f'#endif /* {header_def} */']
+    last_exclude_stmt = 0
     with open(ifile, 'r', encoding='utf-8') as f:
         lines = f.readlines()
         for line in lines:
+            stripped = line.rstrip()
+            if exclude_stmts[last_exclude_stmt] == stripped:
+                last_exclude_stmt += 1
+                if last_exclude_stmt == len(exclude_stmts):
+                    print('\n')
+                    break
+                continue
             if re.match(sys_include_pattern, line):
                 pass
             elif m := re.match(include_pattern, line):
