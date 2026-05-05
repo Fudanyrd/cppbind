@@ -118,7 +118,7 @@ template <> struct CppObject<void> {
                                          PyObject *kwargs) {                   \
     cpp_class &payload = *get_payload(self);                                   \
     ::std::function<ret_type(__VA_ARGS__)> fn =                                \
-        synthesize_##method<cpp_class, ret_type, ##__VA_ARGS__>(payload);      \
+        synthesize_##py_method<cpp_class, ret_type, ##__VA_ARGS__>(payload);   \
     ::cppbind::Tuple tuple = ::cppbind::Tuple::from_args(args);                \
     ::cppbind::PyArgs<0, ret_type, ##__VA_ARGS__> pyargs(tuple);               \
     return pyargs.call(fn);                                                    \
@@ -126,7 +126,7 @@ template <> struct CppObject<void> {
   static PyObject *method_##py_method(PyObject *self, PyObject *args,          \
                                       PyObject *kwargs) {                      \
     auto ret =                                                                 \
-        call_method<ret_type>(self, args, kwargs, &method_raw_##method);       \
+        call_method<ret_type>(self, args, kwargs, &method_raw_##py_method);    \
     return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
   }
 
@@ -173,6 +173,39 @@ template <> struct CppObject<void> {
       }),
 
 /**
+ * Common member types and functions for `CppObject<cpp_class>`.
+ * Starting from these, user can simply use `cpp_class_wrapper`, or
+ * define custom member functions.
+ *
+ * @see staticize_method, staticize_destructor, cpp_class_wrapper_impl
+ */
+#define cpp_class_wrapper_common(cpp_class)                                    \
+  using payload_t = cpp_class;                                                 \
+  using layout_t = struct {                                                    \
+    PyObject pyobj;                                                            \
+    cpp_class payload;                                                         \
+  };                                                                           \
+  static inline payload_t *get_payload(PyObject *obj) {                        \
+    return &(reinterpret_cast<layout_t *>(obj)->payload);                      \
+  }                                                                            \
+  template <typename RetTy,                                                    \
+            ::std::__enable_if_t<!is_void_ty<RetTy>(), bool> = true>           \
+  static inline RetTy call_method(                                             \
+      PyObject *self, PyObject *args, PyObject *kwargs,                        \
+      RetTy (*fn)(PyObject *, PyObject *, PyObject *)) {                       \
+    auto ret = fn(self, args, kwargs);                                         \
+    return ret;                                                                \
+  }                                                                            \
+  template <typename RetTy,                                                    \
+            ::std::__enable_if_t<is_void_ty<RetTy>(), bool> = true>            \
+  static inline PyObject *call_method(                                         \
+      PyObject *self, PyObject *args, PyObject *kwargs,                        \
+      void (*fn)(PyObject *, PyObject *, PyObject *)) {                        \
+    fn(self, args, kwargs);                                                    \
+    Py_RETURN_NONE;                                                            \
+  }
+
+/**
  * Specialization of CppObject for `cpp_class`.
  *
  * This can:
@@ -188,31 +221,8 @@ template <> struct CppObject<void> {
  */
 #define cpp_class_wrapper(cpp_class, foreach_method)                           \
   template <> struct CppObject<cpp_class> {                                    \
-    using payload_t = cpp_class;                                               \
-    using layout_t = struct {                                                  \
-      PyObject pyobj;                                                          \
-      cpp_class payload;                                                       \
-    };                                                                         \
-    static inline payload_t *get_payload(PyObject *obj) {                      \
-      return &(reinterpret_cast<layout_t *>(obj)->payload);                    \
-    }                                                                          \
-    template <typename RetTy,                                                  \
-              ::std::__enable_if_t<!is_void_ty<RetTy>(), bool> = true>         \
-    static inline RetTy                                                        \
-    call_method(PyObject *self, PyObject *args, PyObject *kwargs,              \
-                RetTy (*fn)(PyObject *, PyObject *, PyObject *)) {             \
-      auto ret = fn(self, args, kwargs);                                       \
-      return ret;                                                              \
-    }                                                                          \
-    template <typename RetTy,                                                  \
-              ::std::__enable_if_t<is_void_ty<RetTy>(), bool> = true>          \
-    static inline PyObject *                                                   \
-    call_method(PyObject *self, PyObject *args, PyObject *kwargs,              \
-                void (*fn)(PyObject *, PyObject *, PyObject *)) {              \
-      fn(self, args, kwargs);                                                  \
-      Py_RETURN_NONE;                                                          \
-    }                                                                          \
-    staticize_destructor(payload_t) foreach_method(cpp_class_wrapper_impl)     \
+    cpp_class_wrapper_common(cpp_class) staticize_destructor(payload_t)        \
+        foreach_method(cpp_class_wrapper_impl)                                 \
   }
 
 /**
@@ -246,15 +256,20 @@ template <> struct CppObject<void> {
         ::cppbind::Type<::cppbind::CppObject<cpp_class>>::getattr;             \
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance = ty_ob;        \
     using payload_t = ::cppbind::CppObject<cpp_class>::payload_t;              \
+    /* pad a dummy method, because GNU g++ does not accept zero-size array. */ \
     static ::cppbind::MethodTableEntry methods[] = {                           \
+        MethodTableEntry_dummy(""),                                            \
         foreach_method(cpp_class_create_method_tbl_entry)};                    \
-    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = methods;       \
+    auto num_methods = sizeof(methods) / sizeof(::cppbind::MethodTableEntry);  \
+    ::cppbind::MethodTableEntry *base = methods;                               \
+    if (num_methods != 1) {                                                    \
+      num_methods--; /* skip the dummy method. */                              \
+      base++;        /* skip the dummy method. */                              \
+      ::std::sort(base, base + num_methods);                                   \
+    }                                                                          \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = base;          \
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt =            \
-        sizeof(methods) / sizeof(::cppbind::MethodTableEntry);                 \
-    auto *base = ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods;    \
-    auto *end =                                                                \
-        base + ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt;  \
-    ::std::sort(base, end);                                                    \
+        num_methods;                                                           \
   } while (0)
 
 /**

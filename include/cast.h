@@ -100,7 +100,9 @@ namespace cppbind {
 /**
  * Convert C++ integer types to Python objects.
  */
-template <typename _Tp, std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>(), bool> = true>
+template <
+    typename _Tp,
+    std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>(), bool> = true>
 inline Object into(_Tp value) {
   /* For internal testing, trigger an assertion failure. */
   cppbind_check_internal(0 &&

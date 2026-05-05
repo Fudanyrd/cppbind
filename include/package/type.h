@@ -175,6 +175,15 @@ public:
   MethodTableEntry_build(                                                      \
       package_name, cpp_class, method,                                         \
       MethodTableEntry_build_noarg_lambda(cpp_class, method))
+
+/**
+ * Create a dummy {@link MethodTableEntry}. It is used to pad the method table
+ * when there is no method, because GNU g++ does not accept zero-size array.
+ *
+ * Its gen function should never be used.
+ */
+#define MethodTableEntry_dummy(name)                                           \
+  ::cppbind::MethodTableEntry(name, (::cppbind::MethodTableEntry::gen_t)42)
 };
 
 /**
@@ -507,7 +516,7 @@ PyObject *Type<CppClass>::getattr(PyObject *self, char *name) {
    * Create a fake MethodTableEntry. Cannot initialize with (name, nullptr)
    * because of the assertion in the constructor of MethodTableEntry.
    */
-  auto target = MethodTableEntry(name, (MethodTableEntry::gen_t)42);
+  auto target = MethodTableEntry_dummy(name);
   auto *iter = std::lower_bound(base, base + count, target);
   if (iter != base + count && 0 == strcmp(iter->name, name)) {
     auto *ret = reinterpret_cast<PyObject *>(iter->gen(self));
