@@ -154,7 +154,8 @@ template <> constexpr bool is_void_ty<void>() { return true; }
  */
 template <typename _Tp> constexpr bool is_object_ty() { return false; }
 
-#define object_types(X) X(Bytes) X(Dict) X(List) X(Str) X(Tuple) X(Object)
+#define object_types(X)                                                        \
+  X(Bytes) X(Dict) X(List) X(Str) X(Tuple) X(Object) X(Bool)
 #define instantiate_object_checker(ty)                                         \
   struct ty;                                                                   \
   instantiate_type_checker(is_object_ty, ty, true)
