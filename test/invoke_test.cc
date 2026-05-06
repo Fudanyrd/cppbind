@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 using std::vector;
 
@@ -6,12 +7,23 @@ using std::vector;
 
 /* NOLINTBEGIN(readability-identifier-length) */
 
-static long wield(long a, long b) { return 2 * a + b; }
+static long wierd(long a, long b) { return 2 * a + b; }
 
 static void vec_push(vector<long> &vec, long value) { vec.push_back(value); }
 
 static const long MAGIC_NUM = 42L;
 static long magic() { return MAGIC_NUM; }
+
+static std::unique_ptr<long> cxx_uniq_ptr(PyObject *self, PyObject *const *args,
+                                          Py_ssize_t nargs) {
+  return std::unique_ptr<long>(new long(MAGIC_NUM));
+}
+
+template <>
+cppbind::Object
+cppbind::into<std::unique_ptr<long> &&>(std::unique_ptr<long> &&ptr) {
+  return Long{*ptr}.object();
+}
 
 namespace cppbind {
 
@@ -31,11 +43,11 @@ TEST(Invoke, ValueOnly) {
 
   Tuple args(obj1, obj2);
 
-  std::function<long(long, long)> fn = wield;
+  std::function<long(long, long)> fn = wierd;
   PyArgs<0, long, long, long> py_args(args);
 
   long actual = py_args.call(fn);
-  ASSERT_EQ(actual, wield(val1, val2));
+  ASSERT_EQ(actual, wierd(val1, val2));
 }
 
 /**
@@ -60,11 +72,11 @@ TEST(InvokeVec, ValueOnly) {
       obj2.object().ptr,
   };
 
-  std::function<long(long, long)> fn = wield;
+  std::function<long(long, long)> fn = wierd;
   PyVecCallArgs<0, long, long, long> py_args(args, 2);
   long ret = py_args.call(fn);
-  ASSERT_EQ(ret, wield(val1, val2));
-  ASSERT_EQ(ret, wield(val1, val2));
+  ASSERT_EQ(ret, wierd(val1, val2));
+  ASSERT_EQ(ret, wierd(val1, val2));
 }
 
 /**
@@ -100,6 +112,14 @@ TEST(InvokeVec, NoArg) {
   PyVecCallArgs<0, long> py_args(args, 0);
   long ret = py_args.call(fn);
   ASSERT_EQ(ret, magic());
+}
+
+TEST(InvokeVec, NonCopy) {
+  auto *pt = fastcall_and_into(cxx_uniq_ptr, nullptr, 0);
+  ASSERT_TRUE(PyLong_Check(pt));
+
+  Long value{pt};
+  ASSERT_EQ((long)value, MAGIC_NUM);
 }
 
 } /* namespace cppbind */

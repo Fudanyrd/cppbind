@@ -5,6 +5,7 @@
 #include <cassert>
 #include <setjmp.h>
 #include <stdint.h>
+#include <type_traits>
 #include <utility>
 
 #if defined __cplusplus
@@ -175,6 +176,27 @@ constexpr auto is_pair_ty_impl(int) -> decltype(std::declval<_Tp>().first,
 
 template <typename T> constexpr bool is_pair_ty() {
   return is_pair_ty_impl<T>(0);
+}
+
+/**
+ * Helper for implementing `is_copyable_ty`.
+ */
+template <typename _Tp> constexpr bool can_copy_impl(...) { return false; }
+
+/**
+ * Helper for implementing `is_copyable_ty`.
+ */
+template <typename _Tp>
+constexpr auto can_copy_impl(int)
+    -> decltype(std::declval<_Tp &>() = std::declval<const _Tp &>(), true) {
+  return true;
+}
+
+/**
+ * @return `true` if `_Tp` is copyable (i.e. has copy assignment operator);
+ */
+template <typename _Tp> constexpr bool is_copyable_ty() {
+  return can_copy_impl<_Tp>(0);
 }
 
 } /* namespace cppbind */

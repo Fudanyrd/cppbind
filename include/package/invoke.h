@@ -243,9 +243,9 @@ struct PyVecCallArgs<Idx, RetType, Head, RestElements...>
  * This is specialized for those returning `void` to return `Py_None`.
  */
 template <typename RetTy, std::__enable_if_t<is_void_ty<RetTy>(), bool> = true>
-PyObject *fastcall_and_into(void (*func)(PyObject *, PyObject *const *,
-                                         Py_ssize_t),
-                            PyObject *const *args, Py_ssize_t nargs) {
+inline PyObject *fastcall_and_into(void (*func)(PyObject *, PyObject *const *,
+                                                Py_ssize_t),
+                                   PyObject *const *args, Py_ssize_t nargs) {
   func(nullptr, args, nargs);
   Py_RETURN_NONE;
 }
@@ -253,12 +253,28 @@ PyObject *fastcall_and_into(void (*func)(PyObject *, PyObject *const *,
 /**
  * Call a fast call function and convert the return value to `PyObject *`.
  */
-template <typename RetTy, std::__enable_if_t<!is_void_ty<RetTy>(), bool> = true>
-PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
-                                          Py_ssize_t),
-                            PyObject *const *args, Py_ssize_t nargs) {
+template <typename RetTy,
+          std::__enable_if_t<(!is_void_ty<RetTy>()) && is_copyable_ty<RetTy>(),
+                             bool> = true>
+inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
+                                                 Py_ssize_t),
+                                   PyObject *const *args, Py_ssize_t nargs) {
   RetTy ret = func(nullptr, args, nargs);
   return into<RetTy>(ret).unwrap();
+}
+
+/**
+ * `fastcall_and_into` for non-copyable return types, use
+ * `std::move` to move the return value.
+ */
+template <typename RetTy, std::__enable_if_t<(!is_void_ty<RetTy>()) &&
+                                                 (!is_copyable_ty<RetTy>()),
+                                             bool> = true>
+inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
+                                                 Py_ssize_t),
+                                   PyObject *const *args, Py_ssize_t nargs) {
+  RetTy ret = func(nullptr, args, nargs);
+  return into<RetTy &&>(std::move(ret)).unwrap();
 }
 
 #define gen_builtin_function(cpp_function, RetType, ...)                       \
