@@ -1,6 +1,6 @@
 include_directories(${CPPBIND_INCLUDE_DIRS})
 add_library(myabc SHARED myadd.cc)
-target_link_libraries(myabc cppbind ${PYTHON_LIBRARY})
+target_link_libraries(myabc cppbind cppbind-aux ${PYTHON_LIBRARY})
 
 add_custom_target(eg-abc
   COMMAND  ln -sf libmyabc.so myabc.so && ln -sf "${CMAKE_CURRENT_SOURCE_DIR}/test.py" test.py && python3 < test.py

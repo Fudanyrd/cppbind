@@ -60,7 +60,9 @@ add_subdirectory(3rdparty)
 add_subdirectory(bin)
 add_subdirectory(include)
 add_subdirectory(src)
-target_link_libraries(cppbind empty)
+install(EXPORT cppbind-targets
+        DESTINATION ${INSTALL_CMAKE_DIR}
+        NAMESPACE cppbind::)
 
 add_custom_target(format
   COMMAND sh ./script/format.sh

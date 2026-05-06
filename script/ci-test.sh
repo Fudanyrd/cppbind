@@ -3,6 +3,7 @@
 # CC={C compiler} CXX={CXX Compiler} [CXXSTD={11,14,17,20}] ci-test.sh [build_dir]
 
 set -ex
+( tty && clear ) || true
 
 # check that CC and CXX are set
 test -n "$CC"
@@ -13,6 +14,14 @@ if test -n "$1"; then
   build_dir="$1"
   echo "Using custom build directory: $build_dir" 1>&2
 fi
+
+install_dir=".install"
+if test "$install_dir" == "$build_dir"; then
+  echo "Error: build directory cannot be the same as install directory" 1>&2
+  exit 1
+fi
+mkdir -p "$install_dir"
+install_dir="$( realpath $install_dir )"
 
 if test -n "$CXXSTD"; then
   cxx_std_flag="-DCMAKE_CXX_STANDARD=$CXXSTD"
@@ -28,6 +37,7 @@ mkdir -p "$build_dir" && cd "$build_dir"
 cmake .. -DCMAKE_BUILD_TYPE=Release \
   $cxx_std_flag \
   -DCPPBIND_BUILD_UNITTESTS=TRUE \
+  -DCMAKE_INSTALL_PREFIX="$install_dir" \
   -DCPPBIND_ENABLE_ASSERTION=TRUE \
   -DCPPBIND_BUILD_EXAMPLE=TRUE \
   -DCMAKE_C_COMPILER="$CC" \
@@ -38,4 +48,7 @@ make run-tests
 
 # run examples
 make run-examples
+
+# finally, test that the project can be installed.
+make install && test -d "$install_dir/lib" && test -d "$install_dir/include"
 exit 0

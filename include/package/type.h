@@ -358,7 +358,8 @@ template <typename CppClass> struct Type {
  * @param `cpp_class_name`: (const char *) name of the class in python.
  */
 #define type_init(module_name, cpp_class, cpp_class_name, ...)                 \
-  static_assert(sizeof(::cppbind::Type<cpp_class>) == sizeof(PyTypeObject));   \
+  static_assert(sizeof(::cppbind::Type<cpp_class>) == sizeof(PyTypeObject),    \
+                "cppbind::Type<cpp_class> must be PyTypeObject-sized.");       \
   static ::cppbind::MethodTableEntry CONCAT(methods_,                          \
                                             cpp_class)[] = {__VA_ARGS__};      \
   do {                                                                         \
