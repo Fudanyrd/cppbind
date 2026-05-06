@@ -1,0 +1,36 @@
+#[=============================================================================[.rst:
+Usage Example
+===============
+
+cmake_minimum_required(VERSION 3.22)
+project(myapp)
+
+find_package(cppbind)
+# Minimum required include directories.
+include_directories(${CPPBIND_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
+add_executable(myapp main.cc)
+
+# Minimum required link libraries.
+target_link_libraries(myapp ${CPPBIND_LIBRARY} ${PYTHON_LIBRARIES})
+#]=============================================================================]
+
+cmake_minimum_required(VERSION 3.15)
+get_filename_component(CPPBIND_IMPORT_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(CPPBIND_IMPORT_PREFIX "${CPPBIND_IMPORT_PREFIX}" PATH)
+get_filename_component(CPPBIND_IMPORT_PREFIX "${CPPBIND_IMPORT_PREFIX}" PATH)
+get_filename_component(CPPBIND_IMPORT_PREFIX "${CPPBIND_IMPORT_PREFIX}" PATH)
+if(CPPBIND_IMPORT_PREFIX STREQUAL "/")
+  set(CPPBIND_IMPORT_PREFIX "")
+endif()
+
+message(STATUS "cppbind: Using CMake configuration from ${CPPBIND_IMPORT_PREFIX}")
+
+set(CPPBIND_LIBRARY "${CPPBIND_IMPORT_PREFIX}/lib/libcppbind.a")
+set(CPPBIND_INCLUDE_DIRS "${CPPBIND_IMPORT_PREFIX}/include")
+
+# unset CPPBIND_IMPORT_PREFIX to avoid confusion
+unset(CPPBIND_IMPORT_PREFIX)
+
+# find dependencies
+find_package(Python3 REQUIRED)
+find_package(PythonLibs REQUIRED)
