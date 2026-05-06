@@ -1,5 +1,5 @@
 /**
- * Initialization of static members.
+ * Instantiation of static members.
  */
 
 #include <cppbind.h>
