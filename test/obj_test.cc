@@ -1,4 +1,6 @@
 #include <bits/move.h>
+#include <set>
+#include <unordered_set>
 
 #include <cppbind.h>
 #include <gtest/gtest.h>
@@ -119,6 +121,16 @@ TEST(Object, InplaceNumOp) {
   } else {
     FAIL() << "Failed to create long objects.";
   }
+}
+
+TEST(Object, Compare) {
+  decltype(std::declval<Object>() == std::declval<Object>(), true) foo = true;
+  decltype(std::declval<Object>() < std::declval<Object>(), true) var = true;
+  decltype(std::declval<std::set<Object>>(), true) bar = true;
+}
+
+TEST(Object, Hash) {
+  decltype(std::declval<std::unordered_set<Object>>(), true) foo = true;
 }
 
 } /* namespace cppbind */

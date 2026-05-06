@@ -3,6 +3,9 @@
 
 #include "common.h"
 
+#include <stdexcept>
+#include <unordered_set>
+
 namespace cppbind {
 
 /**
@@ -82,6 +85,45 @@ public:
     other.ptr = nullptr;
     return *this;
   }
+
+#define rich_compare_ops(X)                                                    \
+  X(<, Py_LT)                                                                  \
+  X(>, Py_GT)                                                                  \
+  X(==, Py_EQ)                                                                 \
+  X(!=, Py_NE)                                                                 \
+  X(<=, Py_LE)                                                                 \
+  X(>=, Py_GE)
+
+#define gen_compare_operator(op, op_code)                                      \
+  bool operator op(const Object &other) const {                                \
+    int ret = PyObject_RichCompareBool(ptr, other.ptr, op_code);               \
+    if (ret == -1) {                                                           \
+      /* Type Error */                                                         \
+      throw std::invalid_argument("Failed to compare objects.");               \
+    }                                                                          \
+    return static_cast<bool>(ret);                                             \
+  }
+
+  /**
+   * Compare two objects, without exception (returns -1 on failure).
+   *
+   * @param other: other object to compare with.
+   * @param op_code: one of the following values:
+   * `Py_LT`, `Py_LE`, `Py_EQ`, `Py_NE`, `Py_GT`, `Py_GE`.
+   */
+  int rich_compare(const Object &other, int op_code) const noexcept {
+    int ret = PyObject_RichCompareBool(ptr, other.ptr, op_code);
+    return ret;
+  }
+
+  /**
+   * Compare two Python objects with the given operator. It will throw
+   * `std::invalid_argument` if the comparison is not supported by the
+   * Python objects.
+   */
+  rich_compare_ops(gen_compare_operator);
+#undef rich_compare_ops
+#undef gen_compare_operator
 
   /**
    * Decrement the reference count of the Python object. It will <b>not</b>
@@ -206,5 +248,35 @@ public:
 };
 
 } /* namespace cppbind */
+
+namespace std {
+
+/**
+ * Specialization of std::hash for cppbind::Object.
+ */
+template <> struct hash<cppbind::Object> {
+  /**
+   * Hash the Python object. A more silent version (does not throw exception)
+   * could be relying on `id()` when not hashable:
+   * <blockquote><pre>
+   * size_t operator()(const cppbind::Object &obj) const noexcept {
+   *   auto ret = PyObject_Hash(obj.ptr);
+   *   if (ret == -1) { return std::hash<PyObject *>{}(obj.ptr); }
+   *   return static_cast<size_t>(ret);
+   * }
+   * </pre></blockquote>
+   *
+   * @throw std::invalid_argument if the object is not hashable.
+   */
+  size_t operator()(const cppbind::Object &obj) const {
+    auto ret = PyObject_Hash(obj.ptr);
+    if (ret == -1) {
+      throw std::invalid_argument("Failed to hash the object.");
+    }
+    return static_cast<size_t>(ret);
+  }
+};
+
+} /* namespace std */
 
 #endif /* __OBJECT_H__ */
