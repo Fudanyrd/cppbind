@@ -16,7 +16,7 @@ static long magic() { return MAGIC_NUM; }
 
 static std::unique_ptr<long> cxx_uniq_ptr(PyObject *self, PyObject *const *args,
                                           Py_ssize_t nargs) {
-  return std::unique_ptr<long>(new long(MAGIC_NUM));
+  return std::make_unique<long>(MAGIC_NUM);
 }
 
 template <>
