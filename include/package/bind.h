@@ -125,9 +125,9 @@ template <> struct CppObject<void> {
   }                                                                            \
   static PyObject *method_##py_method(PyObject *self, PyObject *args,          \
                                       PyObject *kwargs) {                      \
-    auto ret =                                                                 \
-        call_method<ret_type>(self, args, kwargs, &method_raw_##py_method);    \
-    return ::cppbind::into<decltype(ret)>(ret).unwrap();                       \
+    auto *ret = call_method_and_into<ret_type>(self, args, kwargs,             \
+                                               &method_raw_##py_method);       \
+    return ret;                                                                \
   }
 
 /**
@@ -188,17 +188,28 @@ template <> struct CppObject<void> {
   static inline payload_t *get_payload(PyObject *obj) {                        \
     return &(reinterpret_cast<layout_t *>(obj)->payload);                      \
   }                                                                            \
-  template <typename RetTy,                                                    \
-            ::std::__enable_if_t<!is_void_ty<RetTy>(), bool> = true>           \
-  static inline RetTy call_method(                                             \
+  template <typename RetTy, ::std::__enable_if_t<(!is_void_ty<RetTy>()) &&     \
+                                                     is_copyable_ty<RetTy>(),  \
+                                                 bool> = true>                 \
+  static inline PyObject *call_method_and_into(                                \
       PyObject *self, PyObject *args, PyObject *kwargs,                        \
       RetTy (*fn)(PyObject *, PyObject *, PyObject *)) {                       \
     auto ret = fn(self, args, kwargs);                                         \
-    return ret;                                                                \
+    return into<decltype(ret)>(ret).unwrap();                                  \
+  }                                                                            \
+  template <typename RetTy,                                                    \
+            ::std::__enable_if_t<                                              \
+                (!is_void_ty<RetTy>()) && (!is_copyable_ty<RetTy>()), bool> =  \
+                true>                                                          \
+  static inline PyObject *call_method_and_into(                                \
+      PyObject *self, PyObject *args, PyObject *kwargs,                        \
+      RetTy (*fn)(PyObject *, PyObject *, PyObject *)) {                       \
+    auto ret = fn(self, args, kwargs);                                         \
+    return into<RetTy &&>(::std::move(ret)).unwrap();                          \
   }                                                                            \
   template <typename RetTy,                                                    \
             ::std::__enable_if_t<is_void_ty<RetTy>(), bool> = true>            \
-  static inline PyObject *call_method(                                         \
+  static inline PyObject *call_method_and_into(                                \
       PyObject *self, PyObject *args, PyObject *kwargs,                        \
       void (*fn)(PyObject *, PyObject *, PyObject *)) {                        \
     fn(self, args, kwargs);                                                    \

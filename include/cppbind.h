@@ -23,5 +23,6 @@
 #include "package/type.h"
 
 #include "cast.h"
+#include "stl.h"
 
 #endif /* __CPPBIND_H__ */
