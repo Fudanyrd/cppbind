@@ -21,8 +21,8 @@ static std::unique_ptr<long> cxx_uniq_ptr(PyObject *self, PyObject *const *args,
 
 template <>
 cppbind::Object
-cppbind::into<std::unique_ptr<long> &&>(std::unique_ptr<long> &&ptr) {
-  return Long{*ptr}.object();
+cppbind::into<std::unique_ptr<long> &&>(std::unique_ptr<long> &&value) {
+  return Long{*value}.object();
 }
 
 namespace cppbind {
