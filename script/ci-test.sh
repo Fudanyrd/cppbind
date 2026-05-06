@@ -20,7 +20,6 @@ else
   cxx_std_flag=""
 fi
 
-./script/gen-hdr.sh
 mkdir -p "$build_dir" && cd "$build_dir"
 
 # When CXXSTD is not set, use cmake default, and cxx_std_flag should

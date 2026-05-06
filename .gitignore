@@ -1,5 +1,25 @@
+# build-install dirs
 .install
 build
+relbuild
+playground
+__pycache__/
+tmp-*
+venv
 tmp
 *.zip
+
+# .vscode. Keep settings.json.
 c_cpp_properties.json
+
+# Doxygen
+html
+latex
+*.old
+*.log
+*.tgz
+*.txz
+
+# Generate System Header.
+*.inc
+cppbind-sys.h

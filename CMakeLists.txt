@@ -58,8 +58,9 @@ set(INSTALL_CMAKE_DIR
 
 add_subdirectory(3rdparty)
 add_subdirectory(bin)
-add_subdirectory(src)
 add_subdirectory(include)
+add_subdirectory(src)
+target_link_libraries(cppbind empty)
 
 add_custom_target(format
   COMMAND sh ./script/format.sh
