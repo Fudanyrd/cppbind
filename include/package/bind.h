@@ -316,6 +316,338 @@ PyObject *staticize_constructor(PyObject *self, PyObject *const *args,
   return obj;
 }
 
+#define has_cast_to(CppTy)                                                     \
+  template <typename _Tp> constexpr bool has_cast_to_##CppTy##_impl(...) {     \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  constexpr auto has_cast_to_##CppTy##_impl(int)                               \
+      ->decltype(static_cast<CppTy>(std::declval<_Tp>()), true) {              \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> constexpr bool has_cast_to_##CppTy() {               \
+    return has_cast_to_##CppTy##_impl<_Tp>(0);                                 \
+  }
+
+has_cast_to(long) has_cast_to(float)
+#undef has_cast_to
+
+#define has_binary_operator(op, opname)                                        \
+  template <typename _Tp> constexpr bool has_##opname##_impl(...) {            \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  constexpr auto has_##opname##_impl(int)                                      \
+      ->decltype(::std::declval<_Tp>() op ::std::declval<_Tp>(), true) {       \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> constexpr bool has_##opname() {                      \
+    return has_##opname##_impl<_Tp>(0);                                        \
+  }
+
+/**
+ * Enumeration of all binary operators in C++.
+ */
+#define cpp_all_binary_operators(X)                                            \
+  X(+, add)                                                                    \
+  X(-, subtract)                                                               \
+  X(*, multiply)                                                               \
+  X(/, div)                                                                    \
+  X(%, remainder)                                                              \
+  X(^, xor) X(&, and) X(|, or) X(>>, rshift) X(<<, lshift) X(==, eq) X(!=, ne) \
+      X(<, lt) X(<=, le) X(>, gt) X(>=, ge)
+
+    cpp_all_binary_operators(has_binary_operator);
+#undef cpp_all_binary_operators
+
+/**
+ * In C++, we do not differentiate true divide and floor divide.
+ * The user should set them correctly. Normally,
+ * integer types have both true divide (resulting in float) and floor divide
+ * (resulting in int), while floating point types only have true divide.
+ *
+ * @see cppbind::is_integer_ty, cppbind::is_fp_ty
+ */
+template <typename _Tp, std::__enable_if_t<!has_div<_Tp>(), bool> = true>
+inline binaryfunc synthesize_divide(void) {
+  return nullptr;
+}
+
+template <typename _Tp, std::__enable_if_t<has_div<_Tp>(), bool> = true>
+inline binaryfunc synthesize_divide(void) {
+  return [](PyObject *a, PyObject *b) -> PyObject * {
+    PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);
+    if (ret == nullptr) {
+      PyErr_SetString(PyExc_RuntimeError, "failed to create result object");
+      return nullptr;
+    }
+
+    _Tp &lhs = *CppObject<_Tp>::get_payload(a);
+    _Tp *result_payload = CppObject<_Tp>::get_payload(ret);
+    if (b->ob_type == a->ob_type) {
+      _Tp &rhs = *CppObject<_Tp>::get_payload(b);
+      new (result_payload) _Tp(lhs / rhs);
+      return ret;
+    }
+
+    try {
+      _Tp rhs = from<_Tp>(b);
+      new (result_payload) _Tp(lhs / rhs);
+      return ret;
+    } catch (std::invalid_argument &) {
+      PyErr_SetString(PyExc_TypeError, "unsupported operand type(s) for /");
+      return nullptr;
+    }
+  };
+}
+
+/**
+ * Inplace divide.
+ */
+template <typename _Tp, std::__enable_if_t<!has_div<_Tp>(), bool> = true>
+inline binaryfunc synthesize_inplace_divide(void) {
+  return nullptr;
+}
+
+template <typename _Tp, std::__enable_if_t<has_div<_Tp>(), bool> = true>
+inline binaryfunc synthesize_inplace_divide(void) {
+  return [](PyObject *a, PyObject *b) -> PyObject * {
+    _Tp &lhs = *CppObject<_Tp>::get_payload(a);
+    if (b->ob_type == a->ob_type) {
+      _Tp &rhs = *CppObject<_Tp>::get_payload(b);
+      lhs /= rhs;
+      return a;
+    }
+
+    try {
+      _Tp rhs = from<_Tp>(b);
+      lhs /= rhs;
+      return a;
+    } catch (std::invalid_argument &) {
+      PyErr_SetString(PyExc_TypeError, "unsupported operand type(s) for /=");
+      return nullptr;
+    }
+  };
+}
+
+/**
+ * Synthesize any other binary operator. `div` is specially documented.
+ */
+#define __foreach(X)                                                           \
+  X(+, add)                                                                    \
+  X(-, subtract)                                                               \
+  X(*, multiply)                                                               \
+  X(%, remainder) X(^, xor) X(&, and) X(|, or) X(>>, rshift) X(<<, lshift)
+
+#define __synthesize(op, opname)                                               \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
+  inline binaryfunc synthesize_##opname(void) {                                \
+    return nullptr;                                                            \
+  }                                                                            \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
+  inline binaryfunc synthesize_##opname(void) {                                \
+    return [](PyObject *a, PyObject *b) -> PyObject * {                        \
+      PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);           \
+      if (ret == nullptr) {                                                    \
+        PyErr_SetString(PyExc_RuntimeError, "failed to create result object"); \
+        return nullptr;                                                        \
+      }                                                                        \
+      _Tp &lhs = *CppObject<_Tp>::get_payload(a);                              \
+      _Tp *result_payload = CppObject<_Tp>::get_payload(ret);                  \
+      if (b->ob_type == a->ob_type) {                                          \
+        _Tp &rhs = *CppObject<_Tp>::get_payload(b);                            \
+        new (result_payload) _Tp(lhs op rhs);                                  \
+        return ret;                                                            \
+      }                                                                        \
+      try {                                                                    \
+        _Tp rhs = from<_Tp>(b);                                                \
+        new (result_payload) _Tp(lhs op rhs);                                  \
+        return ret;                                                            \
+      } catch (std::invalid_argument &) {                                      \
+        PyErr_SetString(PyExc_TypeError,                                       \
+                        "unsupported operand type(s) for " STR(op));           \
+        return nullptr;                                                        \
+      }                                                                        \
+    };                                                                         \
+  }
+
+__foreach(__synthesize)
+#undef __synthesize
+#undef __foreach
+
+/**
+ * Unary operators
+ */
+#define __foreach(X) X(~, invert) X(-, negative) X(+, positive)
+
+#define has_unary_operator(op, opname)                                         \
+  template <typename _Tp> constexpr bool has_##opname##_impl(...) {            \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  constexpr auto has_##opname##_impl(int)->decltype(op std::declval<_Tp>(),    \
+                                                    true) {                    \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> constexpr bool has_##opname() {                      \
+    return has_##opname##_impl<_Tp>(0);                                        \
+  }
+
+    __foreach(has_unary_operator);
+#undef has_unary_operator
+
+#define __synthesize(op, opname)                                               \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
+  inline unaryfunc synthesize_##opname(void) {                                 \
+    return nullptr;                                                            \
+  }                                                                            \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
+  inline unaryfunc synthesize_##opname(void) {                                 \
+    return [](PyObject *a) -> PyObject * {                                     \
+      PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);           \
+      if (ret == nullptr) {                                                    \
+        PyErr_SetString(PyExc_RuntimeError, "failed to create result object"); \
+        return nullptr;                                                        \
+      }                                                                        \
+      _Tp &operand = *CppObject<_Tp>::get_payload(a);                          \
+      _Tp *result_payload = CppObject<_Tp>::get_payload(ret);                  \
+      new (result_payload) _Tp(op operand);                                    \
+      return ret;                                                              \
+    };                                                                         \
+  }
+
+__foreach(__synthesize);
+#undef __synthesize
+#undef __foreach
+
+/**
+ * In-place operators.
+ */
+#define __foreach(X)                                                           \
+  X(+=, inplace_add)                                                           \
+  X(-=, inplace_subtract)                                                      \
+  X(*=, inplace_multiply)                                                      \
+  X(%=, inplace_remainder)                                                     \
+  X(^=, inplace_xor)                                                           \
+  X(&=, inplace_and) X(|=, inplace_or) X(>>=, inplace_rshift)                  \
+      X(<<=, inplace_lshift)
+
+#define has_inplace_operator(op, opname)                                       \
+  template <typename _Tp> constexpr bool has_##opname##_impl(...) {            \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  constexpr auto has_##opname##_impl(int)                                      \
+      ->decltype(std::declval<_Tp &>() op std::declval<_Tp>(), true) {         \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> constexpr bool has_##opname() {                      \
+    return has_##opname##_impl<_Tp>(0);                                        \
+  }
+
+/**
+ * Default implementation for in-place operators.
+ */
+__foreach(has_inplace_operator);
+#undef has_inplace_operator
+#define __synthesize(op, opname)                                               \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
+  inline binaryfunc synthesize_##opname(void) {                                \
+    return nullptr;                                                            \
+  }                                                                            \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
+  inline binaryfunc synthesize_##opname(void) {                                \
+    return [](PyObject *a, PyObject *b) -> PyObject * {                        \
+      _Tp &lhs = *CppObject<_Tp>::get_payload(a);                              \
+      _Tp rhs = from<_Tp>(b);                                                  \
+      lhs op rhs;                                                              \
+      return a;                                                                \
+    };                                                                         \
+  }
+
+__foreach(__synthesize);
+#undef __foreach
+
+/**
+ * Check whether the `PyNumberMethods` struct for a C++ type should be
+ * initialized. It is initialized if the C++ type has at least one of the binary
+ * operators, unary operators. In-place operators are not checked (e.g. there is
+ * an absurd type that has += but not +).
+ */
+template <typename _Tp> constexpr bool cpp_type_has_pynumber(void) {
+#define __foreach(X)                                                           \
+  X(add)                                                                       \
+  X(subtract)                                                                  \
+  X(multiply)                                                                  \
+  X(remainder)                                                                 \
+  X(xor) X(and) X(or) X(rshift) X(lshift) X(invert) X(negative) X(positive)
+
+#define __or(opname) || has_##opname<_Tp>()
+
+  return is_copyable_ty<_Tp>() && (has_div<_Tp>() __foreach(__or));
+
+#undef __or
+#undef __foreach
+}
+
+/**
+ * Initialize a C++ type's number methods, by synthesizing the binary operators,
+ * unary operators, and in-place operators.
+ *
+ * <h3>True Divide and Floor Divide</h3>
+ * By default, this will set (inplace) true divide and floor divide both to
+ * `synthesize(_inplace)_divide`,  so that in Python, '/(=)' and '//(=)'
+ * will have the same behavior.
+ */
+template <typename _Tp>
+void cpp_type_initialize_number(PyNumberMethods *method) {
+  static_assert(
+      cpp_type_has_pynumber<_Tp>(),
+      "cpp_type_initialize_number should only be called for types that "
+      "have at least one of the binary/unary operators.");
+
+#define __foreach(X)                                                           \
+  X(add)                                                                       \
+  X(subtract)                                                                  \
+  X(multiply)                                                                  \
+  X(remainder)                                                                 \
+  X(xor) X(and) X(or) X(rshift) X(lshift) X(invert) X(negative) X(positive)    \
+      X(inplace_add) X(inplace_subtract) X(inplace_multiply)                   \
+          X(inplace_remainder) X(inplace_xor) X(inplace_and) X(inplace_or)     \
+              X(inplace_rshift) X(inplace_lshift)
+
+#define __set_field(opname)                                                    \
+  method->CONCAT(nb_, opname) = synthesize_##opname<_Tp>();
+  __foreach(__set_field) {
+    auto div_fn = synthesize_divide<_Tp>();
+    auto inplace_div_fn = synthesize_inplace_divide<_Tp>();
+    method->nb_true_divide = div_fn;
+    method->nb_floor_divide = div_fn;
+    method->nb_inplace_true_divide = inplace_div_fn;
+    method->nb_inplace_floor_divide = inplace_div_fn;
+  }
+
+#undef __set_field
+#undef __foreach
+}
+
+/**
+ * Do extra initialization of `PyNumberMethods`.
+ */
+#define cpp_type_init_number(cpp_class)                                        \
+  do {                                                                         \
+    auto *ty_ob = ::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance;  \
+    static PyNumberMethods number_methods;                                     \
+    ::cppbind::cpp_type_initialize_number<cpp_class>(&number_methods);         \
+    ty_ob->tp_as_number = &number_methods;                                     \
+  } while (0)
+
 } /* namespace cppbind */
 
 #endif /* __PACKAGE_BIND_H__ */

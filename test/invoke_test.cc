@@ -16,7 +16,11 @@ static long magic() { return MAGIC_NUM; }
 
 static std::unique_ptr<long> cxx_uniq_ptr(PyObject *self, PyObject *const *args,
                                           Py_ssize_t nargs) {
+#if __cplusplus >= 201402L
   return std::make_unique<long>(MAGIC_NUM);
+#else
+  return std::unique_ptr<long>(new long(MAGIC_NUM));
+#endif /* C++ version >= 14 */
 }
 
 template <>
