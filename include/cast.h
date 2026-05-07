@@ -102,7 +102,8 @@ namespace cppbind {
  */
 template <typename _Tp,
           std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>() &&
-                                 !is_object_ty<_Tp>() && !is_pair_ty<_Tp>(),
+                                 !is_object_ty<_Tp>() && !is_pair_ty<_Tp>() &&
+                                 !is_bool_ty<_Tp>(),
                              bool> = true>
 inline Object into(_Tp value) {
   /* For internal testing, trigger an assertion failure. */
@@ -127,6 +128,11 @@ template <typename _Tp, std::__enable_if_t<is_integer_ty<_Tp>(), bool> = true>
 inline Object into(_Tp value) {
   __static_assert(is_integer_ty<_Tp>());
   return Long(value).object();
+}
+
+template <typename _Tp, std::__enable_if_t<is_bool_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  return value ? Object(Py_NewRef(Py_True)) : Object(Py_NewRef(Py_False));
 }
 
 /**

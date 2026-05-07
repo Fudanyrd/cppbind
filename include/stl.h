@@ -12,6 +12,16 @@
 namespace cppbind {
 
 /**
+ * Check if a type is an STL string type.
+ */
+template <typename _Tp> constexpr bool is_cxx_std_string(void) { return false; }
+
+/**
+ * Check if a type is an STL string type.
+ */
+template <> constexpr bool is_cxx_std_string<std::string>(void) { return true; }
+
+/**
  * Convert a Python object to an STL string.
  */
 std::string stringify(PyObject *obj);
@@ -63,6 +73,12 @@ namespace cppbind {
 /**
  * Implement Python's `iternext` function for STL container's iterators.
  * This requires only C++'s forward iterators.
+ *
+ * To instantiate the template, the container must have:
+ * <ul>
+ *   <li>begin() and end() methods;</li>
+ *   <li>iterator type (copyable, comparable by ==, !=);</li>
+ * </ul>
  */
 template <typename STLContainerTy> struct STLIterator {
   /**
@@ -101,7 +117,11 @@ template <typename STLContainerTy> struct STLIterator {
    * the container is reached.
    */
   static PyObject *iternext(PyObject *obj) {
-    auto *self = reinterpret_cast<STLIterator *>(obj + 1);
+    /**
+     * This method is called only by CppObject<STLContainer>.
+     * So does not have to check type of `obj`.
+     */
+    auto *self = CppObject<STLIterator>::get_payload(obj);
     auto *container = self->container;
     auto &iter = self->iter;
     if (iter == container->end()) {
@@ -125,6 +145,69 @@ private:
 #define STLIterator_foreach_method(X)
 
 /**
+ * Add a method named `staticized_size` to the wrapper of an STL container,
+ * which returns python's `lenfunc` for the container if it has a `size()`
+ * method, or `nullptr` otherwise.
+ */
+#define stl_staticize_size(ContainerTy)                                        \
+  template <typename _Tp> static constexpr bool has_size_impl(...) {           \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  static constexpr auto has_size_impl(                                         \
+      int) -> decltype(::std::declval<_Tp>().size(), true) {                   \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> static constexpr bool has_size(void) {               \
+    return has_size_impl<_Tp>(0);                                              \
+  }                                                                            \
+  template <typename _Tp, ::std::__enable_if_t<has_size<_Tp>(), bool> = true>  \
+  static inline lenfunc staticized_size_impl(void) {                           \
+    return [](PyObject *obj) -> Py_ssize_t {                                   \
+      auto *self = CppObject<_Tp>::get_payload(obj);                           \
+      return static_cast<Py_ssize_t>(self->size());                            \
+    };                                                                         \
+  }                                                                            \
+  template <typename _Tp, ::std::__enable_if_t<!has_size<_Tp>(), bool> = true> \
+  static inline lenfunc staticized_size_impl(void) {                           \
+    return nullptr;                                                            \
+  }                                                                            \
+  static inline lenfunc staticized_size(void) {                                \
+    return staticized_size_impl<payload_t>();                                  \
+  }
+
+#define stl_staticize_hash(ContainerTy)                                        \
+  template <typename _Tp> static constexpr bool has_hash_impl(...) {           \
+    return false;                                                              \
+  }                                                                            \
+  template <typename _Tp>                                                      \
+  static constexpr auto has_hash_impl(                                         \
+      int) -> decltype(::std::declval<_Tp>().hash(), true) {                   \
+    return true;                                                               \
+  }                                                                            \
+  template <typename _Tp> static constexpr bool has_hash(void) {               \
+    return has_hash_impl<_Tp>(0);                                              \
+  }                                                                            \
+  template <typename _Tp, ::std::__enable_if_t<has_hash<_Tp>(), bool> = true>  \
+  static inline hashfunc staticized_hash_impl(void) {                          \
+    return [](PyObject *obj) -> Py_hash_t {                                    \
+      auto *self = CppObject<_Tp>::get_payload(obj);                           \
+      return self->hash();                                                     \
+    };                                                                         \
+  }                                                                            \
+  template <typename _Tp, ::std::__enable_if_t<!has_hash<_Tp>(), bool> = true> \
+  static inline hashfunc staticized_hash_impl(void) {                          \
+    return nullptr;                                                            \
+  }                                                                            \
+  static inline hashfunc staticized_hash(void) {                               \
+    return staticized_hash_impl<payload_t>();                                  \
+  }
+
+#define stl_class_wrapper_common(stl_class)                                    \
+  cpp_class_wrapper_common(stl_class);                                         \
+  stl_staticize_size(stl_class) stl_staticize_hash(stl_class)
+
+/**
  * Add a `get_iter` function to the wrapper of an STL container, which returns
  * an iterator wrapper. Before defining `CppObject<stl_class>`,
  * its iterator wrapper `CppObject<STLIterator<stl_class>>` is automatically
@@ -142,7 +225,7 @@ private:
 #define stl_class_wrapper(stl_class, foreach_method)                           \
   cpp_class_wrapper(STLIterator<stl_class>, STLIterator_foreach_method);       \
   template <> struct CppObject<stl_class> {                                    \
-    cpp_class_wrapper_common(stl_class);                                       \
+    stl_class_wrapper_common(stl_class);                                       \
     staticize_destructor(payload_t);                                           \
     foreach_method(cpp_class_wrapper_impl);                                    \
     static PyObject *get_iter(PyObject *self) {                                \
@@ -150,7 +233,8 @@ private:
       PyObject *ret =                                                          \
           _PyObject_New(Type<CppObject<STLIterator<stl_class>>>::instance);    \
       if (ret != nullptr) {                                                    \
-        new (ret) STLIterator<stl_class>(container);                           \
+        new (CppObject<STLIterator<stl_class>>::get_payload(ret))              \
+            STLIterator<stl_class>(container);                                 \
       } else {                                                                 \
         PyErr_SetString(PyExc_RuntimeError,                                    \
                         "failed to create iterator object");                   \
@@ -172,6 +256,8 @@ private:
     auto *container_ty_ob =                                                    \
         ::cppbind::Type<::cppbind::CppObject<stl_class>>::instance;            \
     container_ty_ob->tp_iter = ::cppbind::CppObject<stl_class>::get_iter;      \
+    container_ty_ob->tp_hash =                                                 \
+        ::cppbind::CppObject<stl_class>::staticized_hash();                    \
     auto *iter_ty_ob = ::cppbind::Type<                                        \
         ::cppbind::CppObject<::cppbind::STLIterator<stl_class>>>::instance;    \
     iter_ty_ob->tp_iternext = ::cppbind::STLIterator<stl_class>::iternext;     \
