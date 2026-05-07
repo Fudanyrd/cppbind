@@ -1,8 +1,8 @@
-import _ffi
-rc = _ffi.debug_refcnt
+import _ffi as cxxstd
+rc = cxxstd.debug_refcnt
 
 def test_cint():
-    a = _ffi.cint()
+    a = cxxstd.cint()
     assert int(a) == 0
     init_rc = rc(a)
 
@@ -20,7 +20,7 @@ def test_cint():
 
 
 def test_map():
-    a = _ffi.map()
+    a = cxxstd.map()
     a[0] = 1
     assert a[0] == 1
 
@@ -39,8 +39,21 @@ def test_map():
         keys.append(f[0])
     assert keys == [0, magic]
 
+
+def test_vector():
+    a = cxxstd.vector()
+    count = 12
+    for i in range(count):
+        a.append(i + 1)
+    assert len(a) == count
+
+    for i in range(count):
+        assert a[i] == i + 1
+
+
 if __name__ == "__main__":
     test_cint()
     test_map()
+    test_vector()
     del rc
-    del _ffi
+    del cxxstd

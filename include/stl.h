@@ -356,6 +356,91 @@ inline void stl_type_initialize_mapping(PyMappingMethods *mapping_methods) {
     ty_ob->tp_as_mapping = &mapping_methods;                                   \
   } while (0)
 
+/**
+ * @return false, because _Tp is not a sequence container in STL.
+ */
+template <typename _Tp> constexpr bool stl_has_sequence_impl(...) {
+  return false;
+}
+
+/**
+ * @return true, because _Tp is a sequence container in STL.
+ */
+template <typename _Tp>
+constexpr auto stl_has_sequence_impl(int)
+    -> decltype(::std::declval<_Tp>().size(), ::std::declval<_Tp>().begin(),
+                ::std::declval<_Tp>()[::std::declval<size_t>()],
+                ::std::declval<_Tp>().end(), true) {
+  return true;
+}
+
+/**
+ * Check if a type is a sequence container in STL. A sequence container is a
+ * container that has size(), begin(), end() and operator[] methods, e.g.
+ * `std::vector`.
+ */
+template <typename _Tp> constexpr bool stl_has_sequence(void) {
+  return stl_has_sequence_impl<_Tp>(0);
+}
+
+/**
+ * Initialize the sequence protocol of an STL container wrapper. It will set the
+ * `sq_length`, `sq_item` and `sq_ass_item` of the container's type object.
+ */
+template <typename _Tp>
+inline void stl_type_initialize_sequence(PySequenceMethods *sequence_methods) {
+  static_assert(stl_has_sequence_impl<_Tp>(0),
+                "type does not have sequence protocol");
+  sequence_methods->sq_length = ::cppbind::CppObject<_Tp>::staticized_size();
+  sequence_methods->sq_item = [](PyObject *obj,
+                                 Py_ssize_t index) -> PyObject * {
+    auto *self = CppObject<_Tp>::get_payload(obj);
+    using size_type = typename _Tp::size_type;
+    try {
+      if (index < 0 || static_cast<size_type>(index) >= self->size()) {
+        PyErr_SetString(PyExc_IndexError, "index out of range");
+        return nullptr;
+      }
+      return into((*self)[static_cast<size_type>(index)]).unwrap();
+    } catch (const std::exception &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+      return nullptr;
+    }
+  };
+
+  sequence_methods->sq_ass_item = [](PyObject *obj, Py_ssize_t index,
+                                     PyObject *value) -> int {
+    auto *self = CppObject<_Tp>::get_payload(obj);
+    using size_type = typename _Tp::size_type;
+    try {
+      if (index < 0 || static_cast<size_type>(index) >= self->size()) {
+        PyErr_SetString(PyExc_IndexError, "index out of range");
+        return -1;
+      }
+      if (value == nullptr) {
+        /* delete item */
+        self->erase(self->begin() + index);
+      } else {
+        /* set item */
+        (*self)[static_cast<size_type>(index)] =
+            from<typename _Tp::value_type>(value);
+      }
+      return 0;
+    } catch (const std::exception &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+      return -1;
+    }
+  };
+}
+
+#define stl_type_init_sequence(stl_type)                                       \
+  do {                                                                         \
+    auto *ty_ob = ::cppbind::Type<::cppbind::CppObject<stl_type>>::instance;   \
+    static PySequenceMethods seq_methods;                                      \
+    ::cppbind::stl_type_initialize_sequence<stl_type>(&seq_methods);           \
+    ty_ob->tp_as_sequence = &seq_methods;                                      \
+  } while (0)
+
 } /* namespace cppbind */
 
 #endif /* __STL_H__ */

@@ -2,6 +2,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #define this_package "_ffi"
 
@@ -13,6 +14,9 @@
 namespace cppbind {
 
 #define std_map_foreach_method(X) X(size, size, size_t)
+
+#define std_vector_foreach_method(X)                                           \
+  X(size, size, size_t) X(push_back, append, void, Object)
 
 /**
  * Object comparator.
@@ -35,11 +39,15 @@ struct ObjectCompare {
  * of the Python objects.
  */
 using pymap_t = ::std::map<Object, Object, ObjectCompare>;
+using pyvec_t = ::std::vector<Object>;
 type_static_members_declare(CppObject<pymap_t>);
 type_static_members_declare(CppObject<STLIterator<pymap_t>>);
 type_static_members_declare(CppObject<int>);
+type_static_members_declare(CppObject<pyvec_t>);
+type_static_members_declare(CppObject<STLIterator<pyvec_t>>);
 
 stl_class_wrapper(pymap_t, std_map_foreach_method);
+stl_class_wrapper(pyvec_t, std_vector_foreach_method);
 cpp_class_wrapper(int, STLIterator_foreach_method);
 
 } /* namespace cppbind */
@@ -47,6 +55,8 @@ cpp_class_wrapper(int, STLIterator_foreach_method);
 type_static_members(cppbind::CppObject<cppbind::pymap_t>);
 type_static_members(cppbind::CppObject<cppbind::STLIterator<cppbind::pymap_t>>);
 type_static_members(cppbind::CppObject<int>);
+type_static_members(cppbind::CppObject<cppbind::pyvec_t>);
+type_static_members(cppbind::CppObject<cppbind::STLIterator<cppbind::pyvec_t>>);
 
 static int rest_init() {
   MethodWrapper_init(this_package, cppbind::MethodTableEntry::method_t);
@@ -55,6 +65,10 @@ static int rest_init() {
 
   cpp_type_init(this_package, int, "cint", STLIterator_foreach_method);
   cpp_type_init_number(int);
+
+  stl_type_init("cxxstd", cppbind::pyvec_t, "vector",
+                std_vector_foreach_method);
+  stl_type_init_sequence(cppbind::pyvec_t);
   return 0;
 }
 
@@ -72,6 +86,10 @@ extern "C" PyObject *cint(void) {
   return cppbind::staticize_constructor<int>(nullptr, nullptr, 0);
 }
 
+PyObject *vector(void) {
+  return cppbind::staticize_constructor<cppbind::pyvec_t>(nullptr, nullptr, 0);
+}
+
 /**
  * @return the reference count of the given Python object, at the time
  * of calling this function. Before it is called, the reference count
@@ -87,7 +105,7 @@ gen_modinit_fn_from_fns(
     gen_PyMethodDef(map),
     {"debug_refcnt", debug_refcnt, METH_O,
      "Debug function to get the reference count of a Python object."},
-    gen_PyMethodDef(cint));
+    gen_PyMethodDef(cint), gen_PyMethodDef(vector));
 
 /**
  * NOLINTEND(bugprone-easily-swappable-parameters,
