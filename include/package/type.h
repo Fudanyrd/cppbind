@@ -332,6 +332,7 @@ template <typename CppClass> struct Type {
     auto *cpp_b = reinterpret_cast<CppClass *>(obj_b.ptr);                     \
     *cpp_a Operator *cpp_b;                                                    \
     obj_b.unwrap();                                                            \
+    Py_INCREF(a); /* in-place operator should return the first operand. */     \
     return a;                                                                  \
   }
 

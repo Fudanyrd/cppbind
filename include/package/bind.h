@@ -2,6 +2,7 @@
 #define __PACKAGE_BIND_H__ (1)
 
 #include <functional>
+#include <sstream>
 #include <type_traits>
 
 #include "common.h"
@@ -237,53 +238,6 @@ template <> struct CppObject<void> {
   }
 
 /**
- * Do initialization for the C++ type, in a {@link cppbind::RestInitFn}.
- *
- * @param package_name the name of the package (string literal)
- * @param cpp_class the C++ class to be exposed.
- * @param pyclass_name the name of the class in python (string literal).
- * @param foreach_method a macro that takes another macro as argument and
- * applies it to all methods of the class. Example of this: <blockquote><pre>
- * // inside X() is (method name, py method name, return type, argument types)
- * // the py method name must be unique among all methods of the class,
- * // but the method name can be overloaded in C++.
- * #define intvec_foreach_method(X)
- *   X(push_back, push_back, void, int)
- *   X(size, size, int)
- * </pre></blockquote>
- */
-#define cpp_type_init(package_name, cpp_class, pyclass_name, foreach_method)   \
-  do {                                                                         \
-    auto *ty_ob = ::cppbind::PyTypeObject_Zero();                              \
-    if (ty_ob == nullptr) {                                                    \
-      PyErr_SetString(PyExc_RuntimeError, "failed to create type object");     \
-      return (1);                                                              \
-    }                                                                          \
-    ty_ob->tp_name = package_name "." pyclass_name;                            \
-    ty_ob->tp_flags = Py_TPFLAGS_DEFAULT;                                      \
-    ty_ob->tp_basicsize = sizeof(::cppbind::CppObject<cpp_class>::layout_t);   \
-    ty_ob->tp_dealloc = ::cppbind::CppObject<cpp_class>::del;                  \
-    ty_ob->tp_getattr =                                                        \
-        ::cppbind::Type<::cppbind::CppObject<cpp_class>>::getattr;             \
-    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance = ty_ob;        \
-    using payload_t = ::cppbind::CppObject<cpp_class>::payload_t;              \
-    /* pad a dummy method, because GNU g++ does not accept zero-size array. */ \
-    static ::cppbind::MethodTableEntry methods[] = {                           \
-        MethodTableEntry_dummy(""),                                            \
-        foreach_method(cpp_class_create_method_tbl_entry)};                    \
-    auto num_methods = sizeof(methods) / sizeof(::cppbind::MethodTableEntry);  \
-    ::cppbind::MethodTableEntry *base = methods;                               \
-    if (num_methods != 1) {                                                    \
-      num_methods--; /* skip the dummy method. */                              \
-      base++;        /* skip the dummy method. */                              \
-      ::std::sort(base, base + num_methods);                                   \
-    }                                                                          \
-    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = base;          \
-    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt =            \
-        num_methods;                                                           \
-  } while (0)
-
-/**
  * Synthesize a constructor of a C++ class. It will generate a wrapper function.
  */
 template <typename CppClass, typename... Args>
@@ -316,6 +270,67 @@ PyObject *staticize_constructor(PyObject *self, PyObject *const *args,
   return obj;
 }
 
+/**
+ * Check implementation of
+ * <blockquote><pre>
+ * std::ostream &operator<<(std::ostream &, const Ty &);
+ * </pre></blockquote>
+ */
+template <typename _Tp> constexpr bool has_repr_impl(...) { return false; }
+
+/**
+ * Check implementation of
+ * <blockquote><pre>
+ * std::ostream &operator<<(std::ostream &, const Ty &);
+ * </pre></blockquote>
+ */
+template <typename _Tp>
+constexpr auto
+has_repr_impl(int) -> decltype(std::declval<std::ostringstream &>()
+                                   << std::declval<const _Tp &>(),
+                               true) {
+  return true;
+}
+
+/**
+ * Check implementation of
+ * <blockquote><pre>
+ * std::ostream &operator<<(std::ostream &, const Ty &);
+ * </pre></blockquote>
+ */
+template <typename _Tp> constexpr bool has_repr() {
+  return has_repr_impl<_Tp>(0);
+}
+
+/**
+ * @return synthesized python repr function.
+ */
+template <typename _Tp, std::__enable_if_t<!has_repr<_Tp>(), bool> = true>
+inline constexpr unaryfunc synthesize_repr(void) {
+  return nullptr;
+}
+
+/**
+ * @return synthesized python repr function.
+ */
+template <typename _Tp, std::__enable_if_t<has_repr<_Tp>(), bool> = true>
+inline constexpr unaryfunc synthesize_repr(void) {
+  return [](PyObject *self) -> PyObject * {
+    const _Tp &payload = *CppObject<_Tp>::get_payload(self);
+    std::string repr_str;
+    {
+      std::ostringstream oss;
+      oss << payload;
+      repr_str = oss.str();
+    }
+    auto *ret = PyUnicode_FromString(repr_str.c_str());
+    if (ret == nullptr && !PyErr_Occurred()) {
+      PyErr_SetString(PyExc_RuntimeError, "failed to create string object");
+    }
+    return ret;
+  };
+}
+
 #define has_cast_to(CppTy)                                                     \
   template <typename _Tp> constexpr bool has_cast_to_##CppTy##_impl(...) {     \
     return false;                                                              \
@@ -329,8 +344,27 @@ PyObject *staticize_constructor(PyObject *self, PyObject *const *args,
     return has_cast_to_##CppTy##_impl<_Tp>(0);                                 \
   }
 
-has_cast_to(long) has_cast_to(float)
+has_cast_to(long) has_cast_to(double)
+
+#define synthesize_cast_to(CppTy)                                              \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<!has_cast_to_##CppTy<_Tp>(), bool> = true>      \
+  inline constexpr unaryfunc synthesize_cast_to_##CppTy(void) {                \
+    return nullptr;                                                            \
+  }                                                                            \
+  template <typename _Tp,                                                      \
+            std::__enable_if_t<has_cast_to_##CppTy<_Tp>(), bool> = true>       \
+  inline constexpr unaryfunc synthesize_cast_to_##CppTy(void) {                \
+    return [](PyObject *a) -> PyObject * {                                     \
+      _Tp &payload = *CppObject<_Tp>::get_payload(a);                          \
+      CppTy result = static_cast<CppTy>(payload);                              \
+      return into(result).unwrap();                                            \
+    };                                                                         \
+  }
+
+    synthesize_cast_to(long) synthesize_cast_to(double)
 #undef has_cast_to
+#undef synthesize_cast_to
 
 #define has_binary_operator(op, opname)                                        \
   template <typename _Tp> constexpr bool has_##opname##_impl(...) {            \
@@ -357,8 +391,96 @@ has_cast_to(long) has_cast_to(float)
   X(^, xor) X(&, and) X(|, or) X(>>, rshift) X(<<, lshift) X(==, eq) X(!=, ne) \
       X(<, lt) X(<=, le) X(>, gt) X(>=, ge)
 
-    cpp_all_binary_operators(has_binary_operator);
+        cpp_all_binary_operators(has_binary_operator);
 #undef cpp_all_binary_operators
+
+template <typename _Tp, std::__enable_if_t<!has_eq<_Tp>(), bool> = true>
+inline constexpr richcmpfunc synthesize_richcmp(void) {
+  return nullptr;
+}
+
+/**
+ * For types that has equality but not partial order.
+ */
+template <typename _Tp,
+          std::__enable_if_t<has_eq<_Tp>() && (!has_lt<_Tp>()), bool> = true>
+inline constexpr richcmpfunc synthesize_richcmp(void) {
+  return [](PyObject *a, PyObject *b, int op) -> PyObject * {
+    if (op != Py_EQ && op != Py_NE) {
+      PyErr_SetString(PyExc_TypeError, "unorderable types: " STR(_Tp) "()");
+      return nullptr;
+    }
+    const _Tp &lhs = *CppObject<_Tp>::get_payload(a);
+    bool is_eq;
+    if (b->ob_type == a->ob_type) {
+      const _Tp &rhs = *CppObject<_Tp>::get_payload(b);
+      is_eq = (lhs == rhs);
+    } else {
+      _Tp rhs;
+      rhs = from<_Tp>(b);
+      is_eq = (lhs == rhs);
+    }
+    bool res = (op == Py_EQ) ? is_eq : (!is_eq);
+    return Py_NewRef(res ? Py_True : Py_False); /* return a new reference. */
+  };
+}
+
+/**
+ * For types that has partial order.
+ */
+template <typename _Tp,
+          std::__enable_if_t<has_eq<_Tp>() && has_lt<_Tp>(), bool> = true>
+inline constexpr richcmpfunc synthesize_richcmp(void) {
+  return [](PyObject *a, PyObject *b, int op) -> PyObject * {
+    const _Tp &lhs = *CppObject<_Tp>::get_payload(a);
+    bool res;
+    if (b->ob_type == a->ob_type) {
+      const _Tp &rhs = *CppObject<_Tp>::get_payload(b);
+#define perform_richcmp                                                        \
+  do {                                                                         \
+    switch (op) {                                                              \
+    case Py_EQ: {                                                              \
+      res = (lhs == rhs);                                                      \
+      break;                                                                   \
+    }                                                                          \
+    case Py_NE: {                                                              \
+      res = (lhs != rhs);                                                      \
+      break;                                                                   \
+    }                                                                          \
+    case Py_LT: {                                                              \
+      res = (lhs < rhs);                                                       \
+      break;                                                                   \
+    }                                                                          \
+    case Py_LE: {                                                              \
+      res = (lhs <= rhs);                                                      \
+      break;                                                                   \
+    }                                                                          \
+    case Py_GT: {                                                              \
+      res = (lhs > rhs);                                                       \
+      break;                                                                   \
+    }                                                                          \
+    case Py_GE: {                                                              \
+      res = (lhs >= rhs);                                                      \
+      break;                                                                   \
+    }                                                                          \
+    default: {                                                                 \
+      PyErr_SetString(PyExc_TypeError, "invalid comparison operator");         \
+      return nullptr;                                                          \
+    }                                                                          \
+    }                                                                          \
+  } while (0)
+
+      perform_richcmp;
+    } else {
+      _Tp rhs;
+      rhs = from<_Tp>(b);
+      perform_richcmp;
+    }
+
+    return Py_NewRef(res ? Py_True : Py_False); /* return a new reference. */
+  };
+#undef perform_richcmp
+}
 
 /**
  * In C++, we do not differentiate true divide and floor divide.
@@ -369,12 +491,12 @@ has_cast_to(long) has_cast_to(float)
  * @see cppbind::is_integer_ty, cppbind::is_fp_ty
  */
 template <typename _Tp, std::__enable_if_t<!has_div<_Tp>(), bool> = true>
-inline binaryfunc synthesize_divide(void) {
+inline constexpr binaryfunc synthesize_divide(void) {
   return nullptr;
 }
 
 template <typename _Tp, std::__enable_if_t<has_div<_Tp>(), bool> = true>
-inline binaryfunc synthesize_divide(void) {
+inline constexpr binaryfunc synthesize_divide(void) {
   return [](PyObject *a, PyObject *b) -> PyObject * {
     PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);
     if (ret == nullptr) {
@@ -405,13 +527,14 @@ inline binaryfunc synthesize_divide(void) {
  * Inplace divide.
  */
 template <typename _Tp, std::__enable_if_t<!has_div<_Tp>(), bool> = true>
-inline binaryfunc synthesize_inplace_divide(void) {
+inline constexpr binaryfunc synthesize_inplace_divide(void) {
   return nullptr;
 }
 
 template <typename _Tp, std::__enable_if_t<has_div<_Tp>(), bool> = true>
-inline binaryfunc synthesize_inplace_divide(void) {
+inline constexpr binaryfunc synthesize_inplace_divide(void) {
   return [](PyObject *a, PyObject *b) -> PyObject * {
+    Py_INCREF(a); /* in-place operator should return the first operand. */
     _Tp &lhs = *CppObject<_Tp>::get_payload(a);
     if (b->ob_type == a->ob_type) {
       _Tp &rhs = *CppObject<_Tp>::get_payload(b);
@@ -442,12 +565,12 @@ inline binaryfunc synthesize_inplace_divide(void) {
 #define __synthesize(op, opname)                                               \
   template <typename _Tp,                                                      \
             std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
-  inline binaryfunc synthesize_##opname(void) {                                \
+  inline constexpr binaryfunc synthesize_##opname(void) {                      \
     return nullptr;                                                            \
   }                                                                            \
   template <typename _Tp,                                                      \
             std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
-  inline binaryfunc synthesize_##opname(void) {                                \
+  inline constexpr binaryfunc synthesize_##opname(void) {                      \
     return [](PyObject *a, PyObject *b) -> PyObject * {                        \
       PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);           \
       if (ret == nullptr) {                                                    \
@@ -501,12 +624,12 @@ __foreach(__synthesize)
 #define __synthesize(op, opname)                                               \
   template <typename _Tp,                                                      \
             std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
-  inline unaryfunc synthesize_##opname(void) {                                 \
+  inline constexpr unaryfunc synthesize_##opname(void) {                       \
     return nullptr;                                                            \
   }                                                                            \
   template <typename _Tp,                                                      \
             std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
-  inline unaryfunc synthesize_##opname(void) {                                 \
+  inline constexpr unaryfunc synthesize_##opname(void) {                       \
     return [](PyObject *a) -> PyObject * {                                     \
       PyObject *ret = _PyObject_New(Type<CppObject<_Tp>>::instance);           \
       if (ret == nullptr) {                                                    \
@@ -533,8 +656,8 @@ __foreach(__synthesize);
   X(*=, inplace_multiply)                                                      \
   X(%=, inplace_remainder)                                                     \
   X(^=, inplace_xor)                                                           \
-  X(&=, inplace_and) X(|=, inplace_or) X(>>=, inplace_rshift)                  \
-      X(<<=, inplace_lshift)
+  X(&=, inplace_and)                                                           \
+  X(|=, inplace_or) X(>>=, inplace_rshift) X(<<=, inplace_lshift)
 
 #define has_inplace_operator(op, opname)                                       \
   template <typename _Tp> constexpr bool has_##opname##_impl(...) {            \
@@ -557,16 +680,22 @@ __foreach(has_inplace_operator);
 #define __synthesize(op, opname)                                               \
   template <typename _Tp,                                                      \
             std::__enable_if_t<!has_##opname<_Tp>(), bool> = true>             \
-  inline binaryfunc synthesize_##opname(void) {                                \
+  inline constexpr binaryfunc synthesize_##opname(void) {                      \
     return nullptr;                                                            \
   }                                                                            \
   template <typename _Tp,                                                      \
             std::__enable_if_t<has_##opname<_Tp>(), bool> = true>              \
-  inline binaryfunc synthesize_##opname(void) {                                \
+  inline constexpr binaryfunc synthesize_##opname(void) {                      \
     return [](PyObject *a, PyObject *b) -> PyObject * {                        \
       _Tp &lhs = *CppObject<_Tp>::get_payload(a);                              \
-      _Tp rhs = from<_Tp>(b);                                                  \
-      lhs op rhs;                                                              \
+      if (b->ob_type == a->ob_type) {                                          \
+        _Tp &rhs = *CppObject<_Tp>::get_payload(b);                            \
+        lhs op rhs;                                                            \
+      } else {                                                                 \
+        _Tp rhs = from<_Tp>(b);                                                \
+        lhs op rhs;                                                            \
+      }                                                                        \
+      Py_INCREF(a); /* in-place operator should return the first operand. */   \
       return a;                                                                \
     };                                                                         \
   }
@@ -631,6 +760,9 @@ void cpp_type_initialize_number(PyNumberMethods *method) {
     method->nb_floor_divide = div_fn;
     method->nb_inplace_true_divide = inplace_div_fn;
     method->nb_inplace_floor_divide = inplace_div_fn;
+    method->nb_index = synthesize_cast_to_long<_Tp>();
+    method->nb_int = synthesize_cast_to_long<_Tp>();
+    method->nb_float = synthesize_cast_to_double<_Tp>();
   }
 
 #undef __set_field
@@ -646,6 +778,55 @@ void cpp_type_initialize_number(PyNumberMethods *method) {
     static PyNumberMethods number_methods;                                     \
     ::cppbind::cpp_type_initialize_number<cpp_class>(&number_methods);         \
     ty_ob->tp_as_number = &number_methods;                                     \
+  } while (0)
+
+/**
+ * Do initialization for the C++ type, in a {@link cppbind::RestInitFn}.
+ *
+ * @param package_name the name of the package (string literal)
+ * @param cpp_class the C++ class to be exposed.
+ * @param pyclass_name the name of the class in python (string literal).
+ * @param foreach_method a macro that takes another macro as argument and
+ * applies it to all methods of the class. Example of this: <blockquote><pre>
+ * // inside X() is (method name, py method name, return type, argument types)
+ * // the py method name must be unique among all methods of the class,
+ * // but the method name can be overloaded in C++.
+ * #define intvec_foreach_method(X)
+ *   X(push_back, push_back, void, int)
+ *   X(size, size, int)
+ * </pre></blockquote>
+ */
+#define cpp_type_init(package_name, cpp_class, pyclass_name, foreach_method)   \
+  do {                                                                         \
+    auto *ty_ob = ::cppbind::PyTypeObject_Zero();                              \
+    if (ty_ob == nullptr) {                                                    \
+      PyErr_SetString(PyExc_RuntimeError, "failed to create type object");     \
+      return (1);                                                              \
+    }                                                                          \
+    ty_ob->tp_name = package_name "." pyclass_name;                            \
+    ty_ob->tp_flags = Py_TPFLAGS_DEFAULT;                                      \
+    ty_ob->tp_basicsize = sizeof(::cppbind::CppObject<cpp_class>::layout_t);   \
+    ty_ob->tp_dealloc = ::cppbind::CppObject<cpp_class>::del;                  \
+    ty_ob->tp_repr = ::cppbind::synthesize_repr<cpp_class>();                  \
+    ty_ob->tp_richcompare = ::cppbind::synthesize_richcmp<cpp_class>();        \
+    ty_ob->tp_getattr =                                                        \
+        ::cppbind::Type<::cppbind::CppObject<cpp_class>>::getattr;             \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance = ty_ob;        \
+    using payload_t = ::cppbind::CppObject<cpp_class>::payload_t;              \
+    /* pad a dummy method, because GNU g++ does not accept zero-size array. */ \
+    static ::cppbind::MethodTableEntry methods[] = {                           \
+        MethodTableEntry_dummy(""),                                            \
+        foreach_method(cpp_class_create_method_tbl_entry)};                    \
+    auto num_methods = sizeof(methods) / sizeof(::cppbind::MethodTableEntry);  \
+    ::cppbind::MethodTableEntry *base = methods;                               \
+    if (num_methods != 1) {                                                    \
+      num_methods--; /* skip the dummy method. */                              \
+      base++;        /* skip the dummy method. */                              \
+      ::std::sort(base, base + num_methods);                                   \
+    }                                                                          \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = base;          \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt =            \
+        num_methods;                                                           \
   } while (0)
 
 } /* namespace cppbind */

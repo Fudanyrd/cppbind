@@ -61,7 +61,8 @@ inline std::ostream &operator<<(std::ostream &stream, const Object &obj) {
  * Writes the representation of the Python object held by a `HasObject` type
  * (e.g. {@link List}, {@link Long}) to an STL output stream.
  */
-template <typename _Object_Ty>
+template <typename _Object_Ty,
+          std::__enable_if_t<is_object_ty<_Object_Ty>(), bool> = true>
 inline std::ostream &operator<<(std::ostream &stream, const _Object_Ty &obj) {
   return stream << obj.object();
 }
