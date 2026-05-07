@@ -264,6 +264,78 @@ private:
     iter_ty_ob->tp_iternext = ::cppbind::STLIterator<stl_class>::iternext;     \
   } while (0)
 
+template <typename _Tp> constexpr bool stl_has_mapping_impl(...) {
+  return false;
+}
+
+template <typename _Tp>
+constexpr auto stl_has_mapping_impl(int)
+    -> decltype(::std::declval<typename _Tp::key_type>(),
+                ::std::declval<typename _Tp::mapped_type>(),
+                ::std::declval<_Tp>().find(
+                    ::std::declval<typename _Tp::key_type>()),
+                true) {
+  return true;
+}
+
+template <typename _Tp>
+inline void stl_type_initialize_mapping(PyMappingMethods *mapping_methods) {
+  static_assert(stl_has_mapping_impl<_Tp>(0),
+                "type does not have mapping protocol");
+
+  mapping_methods->mp_length = ::cppbind::CppObject<_Tp>::staticized_size();
+  mapping_methods->mp_subscript = [](PyObject *obj,
+                                     PyObject *key) -> PyObject * {
+    auto *self = CppObject<_Tp>::get_payload(obj);
+    using key_type = typename _Tp::key_type;
+    using value_type = typename _Tp::mapped_type;
+    try {
+      auto iter = self->find(from<key_type>(key));
+      if (iter == self->end()) {
+        PyErr_SetString(PyExc_KeyError, "key not found");
+        return nullptr;
+      }
+      return into(iter->second).unwrap();
+    } catch (const std::exception &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+      return nullptr;
+    }
+  };
+
+  mapping_methods->mp_ass_subscript = [](PyObject *obj, PyObject *key,
+                                         PyObject *value) -> int {
+    auto *self = CppObject<_Tp>::get_payload(obj);
+    using key_type = typename _Tp::key_type;
+    using value_type = typename _Tp::mapped_type;
+    try {
+      if (value == nullptr) {
+        /* delete item */
+        auto iter = self->find(from<key_type>(key));
+        if (iter == self->end()) {
+          PyErr_SetString(PyExc_KeyError, "key not found");
+          return -1;
+        }
+        self->erase(iter);
+      } else {
+        /* set item */
+        (*self)[from<key_type>(key)] = from<value_type>(value);
+      }
+      return 0;
+    } catch (const std::exception &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+      return -1;
+    }
+  };
+}
+
+#define stl_type_init_mapping(stl_type)                                        \
+  do {                                                                         \
+    static PyMappingMethods mapping_methods;                                   \
+    ::cppbind::stl_type_initialize_mapping<stl_type>(&mapping_methods);        \
+    auto *ty_ob = ::cppbind::Type<::cppbind::CppObject<stl_type>>::instance;   \
+    ty_ob->tp_as_mapping = &mapping_methods;                                   \
+  } while (0)
+
 } /* namespace cppbind */
 
 #endif /* __STL_H__ */

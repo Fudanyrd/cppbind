@@ -21,6 +21,11 @@ public:
   PyObject *ptr; /* assumes not null */
 
   /**
+   * Do not use.
+   */
+  Object() : ptr(Py_NewRef(Py_None)) {}
+
+  /**
    * Initialize from `PyObject *`. It will not increment
    * the reference count of <pre>pt</pre>.
    */

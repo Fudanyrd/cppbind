@@ -33,6 +33,14 @@ template <typename T> inline T from(PyObject *obj) {
  */
 template <> inline PyObject *from<PyObject *>(PyObject *obj) { return obj; }
 
+/**
+ * Template specialization for `Object`.
+ */
+template <> inline Object from<Object>(PyObject *obj) {
+  Py_INCREF(obj); /* borrow a reference to obj. */
+  return Object{obj};
+}
+
 #define cppbind_from_on_type_mismatch                                          \
   throw std::invalid_argument("type mismatch when converting to C++ type")
 
@@ -155,8 +163,8 @@ template <> inline Object into<PyObject *>(PyObject *pt) { return Object{pt}; }
  */
 template <typename _Tp, std::__enable_if_t<is_pair_ty<_Tp>(), bool> = true>
 inline Object into(_Tp value) {
-  Object first_obj = into<decltype(value.first)>(value.first);
-  Object second_obj = into<decltype(value.second)>(value.second);
+  Object first_obj = into(value.first);
+  Object second_obj = into(value.second);
   return Tuple(first_obj, second_obj).object();
 }
 
