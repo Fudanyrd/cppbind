@@ -1,5 +1,5 @@
 include_directories(${CPPBIND_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-add_library(_ffi SHARED _ffi.cc cint.cc cppmap.cc)
+add_library(_ffi SHARED _ffi.cc)
 target_link_libraries(_ffi cppbind cppbind-aux ${PYTHON_LIBRARY})
 
 add_custom_target(eg-ffi

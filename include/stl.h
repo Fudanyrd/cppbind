@@ -264,10 +264,16 @@ private:
     iter_ty_ob->tp_iternext = ::cppbind::STLIterator<stl_class>::iternext;     \
   } while (0)
 
+/**
+ * @return false, because _Tp is not a mapping container in STL.
+ */
 template <typename _Tp> constexpr bool stl_has_mapping_impl(...) {
   return false;
 }
 
+/**
+ * @return true if _Tp has key_type, mapped_type and find() method.
+ */
 template <typename _Tp>
 constexpr auto stl_has_mapping_impl(int)
     -> decltype(::std::declval<typename _Tp::key_type>(),
@@ -278,6 +284,20 @@ constexpr auto stl_has_mapping_impl(int)
   return true;
 }
 
+/**
+ * Check if a type is a mapping container in STL. A mapping container is a
+ * container that has key_type, mapped_type and find() method, e.g.
+ * `std::map`.
+ */
+template <typename _Tp> constexpr bool stl_has_mapping(void) {
+  return stl_has_mapping_impl<_Tp>(0);
+}
+
+/**
+ * Initialize the mapping protocol of an STL container wrapper. It will set the
+ * `mp_length`, `mp_subscript` and `mp_ass_subscript` of the container's type
+ * object.
+ */
 template <typename _Tp>
 inline void stl_type_initialize_mapping(PyMappingMethods *mapping_methods) {
   static_assert(stl_has_mapping_impl<_Tp>(0),
