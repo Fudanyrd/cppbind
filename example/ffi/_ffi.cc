@@ -16,7 +16,8 @@ namespace cppbind {
 #define std_map_foreach_method(X) X(size, size, size_t)
 
 #define std_vector_foreach_method(X)                                           \
-  X(size, size, size_t) X(push_back, append, void, Object)
+  X(size, size, size_t)                                                        \
+  X(push_back, append, void, Object) X(swap, swap, void, pyvec_t &)
 
 /**
  * Object comparator.
@@ -40,15 +41,34 @@ struct ObjectCompare {
  */
 using pymap_t = ::std::map<Object, Object, ObjectCompare>;
 using pyvec_t = ::std::vector<Object>;
+
+/**
+ * Forward declarations.
+ */
+template <> struct CppObject<pymap_t>;
+template <> struct CppObject<STLIterator<pymap_t>>;
+template <> struct CppObject<pyvec_t>;
+template <> struct CppObject<STLIterator<pyvec_t>>;
+template <> struct CppObject<int>;
 type_static_members_declare(CppObject<pymap_t>);
 type_static_members_declare(CppObject<STLIterator<pymap_t>>);
 type_static_members_declare(CppObject<int>);
 type_static_members_declare(CppObject<pyvec_t>);
 type_static_members_declare(CppObject<STLIterator<pyvec_t>>);
+template <> pyvec_t &from<pyvec_t &>(PyObject *obj);
+template <> pymap_t &from<pymap_t &>(PyObject *obj);
 
 stl_class_wrapper(pymap_t, std_map_foreach_method);
 stl_class_wrapper(pyvec_t, std_vector_foreach_method);
 cpp_class_wrapper(int, STLIterator_foreach_method);
+
+template <> inline pyvec_t &from<pyvec_t &>(PyObject *obj) {
+  return *CppObject<pyvec_t>::get_payload(obj);
+}
+
+template <> inline pymap_t &from<pymap_t &>(PyObject *obj) {
+  return *CppObject<pymap_t>::get_payload(obj);
+}
 
 } /* namespace cppbind */
 
@@ -66,7 +86,7 @@ static int rest_init() {
   cpp_type_init(this_package, int, "cint", STLIterator_foreach_method);
   cpp_type_init_number(int);
 
-  stl_type_init("cxxstd", cppbind::pyvec_t, "vector",
+  stl_type_init(this_package, cppbind::pyvec_t, "vector",
                 std_vector_foreach_method);
   stl_type_init_sequence(cppbind::pyvec_t);
   return 0;
