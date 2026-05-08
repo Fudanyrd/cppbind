@@ -27,6 +27,13 @@ template <> constexpr bool is_cxx_std_string<std::string>(void) { return true; }
 std::string stringify(PyObject *obj);
 
 /**
+ * Specialization of `from` for STL string type.
+ */
+template <> inline std::string from<std::string>(PyObject *obj) {
+  return stringify(obj);
+}
+
+/**
  * Convert a Python object to an STL string.
  */
 inline std::string stringify(const Object &obj) { return stringify(obj.ptr); }

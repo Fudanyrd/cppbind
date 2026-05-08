@@ -20,6 +20,118 @@ static inline PyTypeObject *PyTypeObject_Zero() {
 }
 
 /**
+ * Bind C++ type's data member to Python attribute.
+ */
+struct DataMember {
+
+  /**
+   * Getter type for the data member. It takes a pointer to the object and
+   * returns the value of the data member as a `PyObject *`.
+   */
+  typedef PyObject *(*GetterType)(PyObject *object);
+
+  /**
+   * Setter type for the data member. It takes a pointer to the object and a
+   * `PyObject *` representing the value to be set.
+   */
+  typedef void (*SetterType)(PyObject *object, PyObject *value);
+
+  /**
+   * Construct a dummy `DataMember. Set getter to a magic
+   * number to make sure it is not null.
+   */
+  DataMember(void) : name(""), getter(GetterType(42)), setter(nullptr) {
+    cppbind_check_internal(getter != nullptr);
+  }
+
+  /**
+   * The constructor you should use.
+   *
+   * @param name the name of the data member; an identifier.
+   * @param getter the getter function for the data member. It should not be
+   * null.
+   * @param setter the setter function for the data member. It should be null if
+   * the data member is read-only; otherwise, it should not be null.
+   */
+  DataMember(const char *name, GetterType getter, SetterType setter)
+      : name(name), getter(getter), setter(setter) {
+    cppbind_assert(name != nullptr && getter != nullptr);
+  }
+
+  /**
+   * Construct a dummy `DataMember. Set getter to a magic
+   * number to make sure it is not null.
+   */
+  DataMember(const char *name)
+      : name(name), getter(GetterType(42)), setter(nullptr) {
+    cppbind_check_internal(getter != nullptr);
+  }
+
+  /**
+   * String literal representing the name of the data member.
+   */
+  const char *name;
+
+  /**
+   * Getter function for the data member. It should not be null.
+   */
+  GetterType getter;
+
+  /**
+   * Set this to nullptr if the data member is read-only.
+   * Otherwise, it should be a valid function pointer.
+   */
+  SetterType setter;
+
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator==(const DataMember &other) const {
+    return strcmp(name, other.name) == 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator!=(const DataMember &other) const { return !(*this == other); }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator<(const DataMember &other) const {
+    return strcmp(name, other.name) < 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator<=(const DataMember &other) const {
+    return strcmp(name, other.name) <= 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator>(const DataMember &other) const {
+    return strcmp(name, other.name) > 0;
+  }
+  /**
+   * Comparison based on `name`.
+   */
+  bool operator>=(const DataMember &other) const {
+    return strcmp(name, other.name) >= 0;
+  }
+
+#define cpp_type_gen_getter(cpp_type, member)                                  \
+  [](PyObject *self) -> PyObject * {                                           \
+    cpp_type *ptr_this = ::cppbind::CppObject<cpp_type>::get_payload(self);    \
+    return ::cppbind::into(ptr_this->member).unwrap();                         \
+  }
+
+#define cpp_type_gen_setter(cpp_type, member)                                  \
+  [](PyObject *self, PyObject *value) {                                        \
+    cpp_type *ptr_this = ::cppbind::CppObject<cpp_type>::get_payload(self);    \
+    ptr_this->member = ::cppbind::from<decltype(ptr_this->member)>(value);     \
+  }
+};
+
+/**
  * The method table entry for a type. It contains the method name and a
  * generator of {@link MethodWrapper}. The generator takes the self pointer as
  * argument and returns a {@link MethodWrapper}, which is a callable object that
@@ -253,11 +365,31 @@ template <typename CppClass> struct Type {
   static Py_ssize_t methods_cnt;
 
   /**
+   * Array of {@link DataMember} for this C++ class.
+   *
+   * It is allocated statically, so it should not be freed.
+   */
+  static DataMember *data_members;
+
+  /**
+   * Length of {@link Type::data_members}.
+   */
+  static Py_ssize_t data_members_cnt;
+
+  /**
    * Default `__getattr__` implementation.
    * It will search for the method in the {@link MethodTableEntry}
    * array and return the corresponding method wrapper if found.
+   * If not, it resumes to searching a data member in the `DataMember`
+   * array and return the result of the {@link DataMember::getter} if found.
    */
   static PyObject *getattr(PyObject *, char *);
+
+  /**
+   * Implementation of `__setattr__`. It will search for the data member in the
+   * `DataMember` array and call the corresponding setter if found.
+   */
+  static int setattr(PyObject *, char *, PyObject *);
 
   /**
    * The module free function. It will be called when the module
@@ -340,12 +472,17 @@ template <typename CppClass> struct Type {
   template <> PyTypeObject *cppbind::Type<cpp_class>::instance = nullptr;      \
   template <>                                                                  \
   ::cppbind::MethodTableEntry *cppbind::Type<cpp_class>::methods = nullptr;    \
-  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt = 0
+  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt = 0;            \
+  template <>                                                                  \
+  cppbind::DataMember *cppbind::Type<cpp_class>::data_members = nullptr;       \
+  template <> Py_ssize_t cppbind::Type<cpp_class>::data_members_cnt = 0
 
 #define type_static_members_declare(cpp_class)                                 \
   template <> PyTypeObject *cppbind::Type<cpp_class>::instance;                \
   template <>::cppbind::MethodTableEntry *cppbind::Type<cpp_class>::methods;   \
-  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt
+  template <> Py_ssize_t cppbind::Type<cpp_class>::methods_cnt;                \
+  template <> cppbind::DataMember *cppbind::Type<cpp_class>::data_members;     \
+  template <> Py_ssize_t cppbind::Type<cpp_class>::data_members_cnt
 
 /**
  * This macro does very detailed initialization, therefore
@@ -525,8 +662,55 @@ PyObject *Type<CppClass>::getattr(PyObject *self, char *name) {
     return ret;
   }
 
+  /**
+   * Try looking into the data members.
+   */
+  if (data_members_cnt > 0) {
+    auto *data_base = Type<CppClass>::data_members;
+    auto *data_iter = std::lower_bound(data_base, data_base + data_members_cnt,
+                                       DataMember(name));
+    if (data_iter != data_base + data_members_cnt &&
+        0 == strcmp(data_iter->name, name)) {
+      auto *getter = data_iter->getter; /* must not be nullptr. */
+      return getter(self);
+    }
+  }
+
   PyErr_SetString(PyExc_AttributeError, "attribute not found");
   return nullptr;
+}
+
+template <typename CppClass>
+int Type<CppClass>::setattr(PyObject *self, char *name, PyObject *value) {
+  PyTypeObject *tp = self->ob_type;
+  if (tp != Type<CppClass>::instance) {
+    PyErr_SetString(PyExc_TypeError, "invalid type");
+    return -1;
+  }
+
+  if (data_members_cnt > 0) {
+    auto *data_base = Type<CppClass>::data_members;
+    auto *data_iter = std::lower_bound(data_base, data_base + data_members_cnt,
+                                       DataMember(name));
+    if (data_iter != data_base + data_members_cnt &&
+        0 == strcmp(data_iter->name, name)) {
+      auto *setter = data_iter->setter;
+      if (setter == nullptr) {
+        PyErr_SetString(PyExc_AttributeError, "attribute is read-only");
+        return -1;
+      }
+      if (value == nullptr) {
+        PyErr_SetString(PyExc_AttributeError,
+                        "deletion of attributes is not supported");
+        return -1;
+      }
+      setter(self, value);
+      return 0;
+    }
+  }
+
+  PyErr_SetString(PyExc_AttributeError, "attribute not found");
+  return -1;
 }
 
 template <typename CppClass> void Type<CppClass>::module_free() {

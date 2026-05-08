@@ -811,6 +811,8 @@ void cpp_type_initialize_number(PyNumberMethods *method) {
     ty_ob->tp_richcompare = ::cppbind::synthesize_richcmp<cpp_class>();        \
     ty_ob->tp_getattr =                                                        \
         ::cppbind::Type<::cppbind::CppObject<cpp_class>>::getattr;             \
+    ty_ob->tp_setattr =                                                        \
+        ::cppbind::Type<::cppbind::CppObject<cpp_class>>::setattr;             \
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance = ty_ob;        \
     using payload_t = ::cppbind::CppObject<cpp_class>::payload_t;              \
     /* pad a dummy method, because GNU g++ does not accept zero-size array. */ \
@@ -827,6 +829,43 @@ void cpp_type_initialize_number(PyNumberMethods *method) {
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods = base;          \
     ::cppbind::Type<::cppbind::CppObject<cpp_class>>::methods_cnt =            \
         num_methods;                                                           \
+  } while (0)
+
+#define cpp_class_create_data_member(member, read_only)                        \
+  ::cppbind::DataMember{                                                       \
+      STR(member), cpp_type_gen_getter(payload_t, member),                     \
+      ((read_only) ? nullptr                                                   \
+                   : (::cppbind::DataMember::SetterType)cpp_type_gen_setter(   \
+                         payload_t, member))},
+
+/**
+ * Generate {@link DataMember} array for a C++ class, and initialize the data
+ * member related fields in the C++ type object. The `foreach_data_member` is a
+ * macro that takes another macro as argument and applies it to all data
+ * members of the class.
+ *
+ * Example of this: <blockquote><pre>
+ * // inside X() is (data member name, whether it is read-only)
+ * #define point_2d_members(X) X(x, false) X(y, false)
+ * </pre></blockquote>
+ *
+ * <b>Note</b>: this must be called after {@link cpp_type_init}, because it
+ * needs the type object to be created and assigned to {@link Type}.
+ */
+#define cpp_type_init_data_members(cpp_class, foreach_data_member)             \
+  do {                                                                         \
+    using payload_t = ::cppbind::CppObject<cpp_class>::payload_t;              \
+    static ::cppbind::DataMember data_members[] = {                            \
+        foreach_data_member(cpp_class_create_data_member)};                    \
+    auto num_data_members =                                                    \
+        sizeof(data_members) / sizeof(::cppbind::DataMember);                  \
+    ::cppbind::DataMember *base = data_members;                                \
+    if (num_data_members != 0) {                                               \
+      ::std::sort(base, base + num_data_members);                              \
+    }                                                                          \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::data_members = base;     \
+    ::cppbind::Type<::cppbind::CppObject<cpp_class>>::data_members_cnt =       \
+        num_data_members;                                                      \
   } while (0)
 
 } /* namespace cppbind */

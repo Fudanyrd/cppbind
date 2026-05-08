@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 
+#if !defined this_package
 #define this_package "_ffi"
+#endif /* !defined this_package */
 
 /**
  * NOLINTBEGIN(bugprone-easily-swappable-parameters,
@@ -42,6 +44,40 @@ struct ObjectCompare {
 using pymap_t = ::std::map<Object, Object, ObjectCompare>;
 using pyvec_t = ::std::vector<Object>;
 
+struct Point2D {
+  double x, y;
+
+  Point2D() : x(0), y(0) {}
+
+  Point2D &operator+=(const Point2D &other) {
+    x += other.x;
+    y += other.y;
+    return *this;
+  }
+
+  Point2D &operator-=(const Point2D &other) {
+    x -= other.x;
+    y -= other.y;
+    return *this;
+  }
+};
+
+Point2D operator+(const Point2D &lhs, const Point2D &rhs) {
+  Point2D res = lhs;
+  res += rhs;
+  return res;
+}
+Point2D operator-(const Point2D &lhs, const Point2D &rhs) {
+  Point2D res = lhs;
+  res -= rhs;
+  return res;
+}
+
+std::ostream &operator<<(std::ostream &os, const Point2D &p) {
+  os << "Point2D(" << p.x << ", " << p.y << ")";
+  return os;
+}
+
 /**
  * Forward declarations.
  */
@@ -55,12 +91,14 @@ type_static_members_declare(CppObject<STLIterator<pymap_t>>);
 type_static_members_declare(CppObject<int>);
 type_static_members_declare(CppObject<pyvec_t>);
 type_static_members_declare(CppObject<STLIterator<pyvec_t>>);
+type_static_members_declare(CppObject<Point2D>);
 template <> pyvec_t &from<pyvec_t &>(PyObject *obj);
 template <> pymap_t &from<pymap_t &>(PyObject *obj);
 
 stl_class_wrapper(pymap_t, std_map_foreach_method);
 stl_class_wrapper(pyvec_t, std_vector_foreach_method);
 cpp_class_wrapper(int, STLIterator_foreach_method);
+cpp_class_wrapper(Point2D, STLIterator_foreach_method);
 
 template <> inline pyvec_t &from<pyvec_t &>(PyObject *obj) {
   return *CppObject<pyvec_t>::get_payload(obj);
@@ -70,6 +108,13 @@ template <> inline pymap_t &from<pymap_t &>(PyObject *obj) {
   return *CppObject<pymap_t>::get_payload(obj);
 }
 
+template <> Point2D from<Point2D>(PyObject *obj) {
+  if (PyObject_TypeCheck(obj, Type<CppObject<Point2D>>::instance)) {
+    return *CppObject<Point2D>::get_payload(obj);
+  }
+  cppbind_from_on_type_mismatch;
+}
+
 } /* namespace cppbind */
 
 type_static_members(cppbind::CppObject<cppbind::pymap_t>);
@@ -77,6 +122,7 @@ type_static_members(cppbind::CppObject<cppbind::STLIterator<cppbind::pymap_t>>);
 type_static_members(cppbind::CppObject<int>);
 type_static_members(cppbind::CppObject<cppbind::pyvec_t>);
 type_static_members(cppbind::CppObject<cppbind::STLIterator<cppbind::pyvec_t>>);
+type_static_members(cppbind::CppObject<cppbind::Point2D>);
 
 static int rest_init() {
   MethodWrapper_init(this_package, cppbind::MethodTableEntry::method_t);
@@ -89,6 +135,13 @@ static int rest_init() {
   stl_type_init(this_package, cppbind::pyvec_t, "vector",
                 std_vector_foreach_method);
   stl_type_init_sequence(cppbind::pyvec_t);
+
+#define point_2d_members(X) X(x, false) X(y, false)
+  cpp_type_init(this_package, cppbind::Point2D, "Point2D",
+                STLIterator_foreach_method);
+  cpp_type_init_number(cppbind::Point2D);
+  cpp_type_init_data_members(cppbind::Point2D, point_2d_members);
+#undef point_2d_members
   return 0;
 }
 
@@ -120,12 +173,16 @@ extern "C" PyObject *debug_refcnt(PyObject *self, PyObject *arg) {
   return cppbind::into(refcnt).unwrap();
 }
 
+extern "C" PyObject *point2d(void) {
+  return cppbind::staticize_constructor<cppbind::Point2D>(nullptr, nullptr, 0);
+}
+
 gen_modinit_fn_from_fns(
     /* name */ _ffi, &rest_init, nullptr, nullptr, nullptr,
     gen_PyMethodDef(map),
     {"debug_refcnt", debug_refcnt, METH_O,
      "Debug function to get the reference count of a Python object."},
-    gen_PyMethodDef(cint), gen_PyMethodDef(vector));
+    gen_PyMethodDef(cint), gen_PyMethodDef(vector), gen_PyMethodDef(point2d));
 
 /**
  * NOLINTEND(bugprone-easily-swappable-parameters,
