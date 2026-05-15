@@ -31,12 +31,20 @@ cppbind::into<std::unique_ptr<long> &&>(std::unique_ptr<long> &&value) {
 
 namespace cppbind {
 
+struct VecObject {
+  PyObject pyobj;
+  char mem_for_vec[sizeof(std::vector<long>)];
+
+  VecObject() : pyobj{1000, nullptr} { new (mem_for_vec) std::vector<long>(); }
+};
+
 /**
  * This is not how you should write conversion for your own
  * C++ types. TODO:
  */
 template <> std::vector<long> &from<std::vector<long> &>(PyObject *obj) {
-  return *reinterpret_cast<std::vector<long> *>(obj);
+  VecObject *vec_obj = reinterpret_cast<VecObject *>(obj);
+  return *reinterpret_cast<std::vector<long> *>(vec_obj->mem_for_vec);
 }
 
 TEST(Invoke, ValueOnly) {
@@ -89,7 +97,7 @@ TEST(InvokeVec, ValueOnly) {
  * Python objects to C++ types.
  */
 TEST(InvokeVec, RefAndValue) {
-  std::vector<long> vec;
+  VecObject vec;
   Long value(MAGIC_NUM);
 
   PyObject *args[] = {
@@ -101,13 +109,16 @@ TEST(InvokeVec, RefAndValue) {
   PyVecCallArgs<0, void, vector<long> &, long> py_args(args, 2);
   py_args.call(fn);
 
-  ASSERT_EQ(vec.size(), 1);
-  ASSERT_EQ(vec[0], MAGIC_NUM);
+  std::vector<long> &vec_ref =
+      from<std::vector<long> &>(reinterpret_cast<PyObject *>(&vec));
+
+  ASSERT_EQ(vec_ref.size(), 1);
+  ASSERT_EQ(vec_ref[0], MAGIC_NUM);
 
   py_args.call(fn);
-  ASSERT_EQ(vec.size(), 2);
-  ASSERT_EQ(vec[0], MAGIC_NUM);
-  ASSERT_EQ(vec[1], MAGIC_NUM);
+  ASSERT_EQ(vec_ref.size(), 2);
+  ASSERT_EQ(vec_ref[0], MAGIC_NUM);
+  ASSERT_EQ(vec_ref[1], MAGIC_NUM);
 }
 
 TEST(InvokeVec, NoArg) {

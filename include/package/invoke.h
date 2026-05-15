@@ -30,212 +30,233 @@ typedef PyObject *(*PyCFunctionVecWithKeywords)(PyObject *self,
 namespace cppbind {
 
 /**
+ * Base class for argument packs. It provides an interface to get the expected
+ * argument count and get the argument at a specific index.
+ */
+/* abstract */ struct ArgumentPack {
+  virtual ~ArgumentPack() = default;
+
+  /**
+   * @return expected argument count.
+   */
+  virtual size_t size() const = 0;
+
+  /**
+   * @return reference to the argument tuple.
+   */
+  virtual Object get(size_t idx) const = 0;
+};
+
+/**
+ * Argument pack for `PyCFunctionVec`.
+ */
+struct PyVecCallArgPack final : public ArgumentPack {
+  /**
+   * Constructor.
+   */
+  PyVecCallArgPack(PyObject *const *args, Py_ssize_t nargs)
+      : args(args), nargs(nargs) {}
+  ~PyVecCallArgPack() = default;
+
+  /**
+   * @return expected argument count.
+   */
+  size_t size() const override { return static_cast<size_t>(nargs); }
+
+  /**
+   * @return reference to the argument tuple.
+   */
+  Object get(size_t idx) const override {
+    cppbind_check_internal(idx < static_cast<size_t>(nargs));
+    /* Must increment the refcnt in order to borrow it. */
+    auto *ptr = const_cast<PyObject *>(args[idx]);
+    Py_INCREF(ptr);
+    return Object(ptr);
+  }
+
+private:
+  const PyObject *const *args;
+  const Py_ssize_t nargs;
+};
+
+/**
+ * Argument pack for `PyCFunction`.
+ */
+struct PyCallArgPack final : public ArgumentPack {
+  /**
+   * Constructor.
+   */
+  PyCallArgPack(const Tuple &tp) : tuple(tp) {}
+  ~PyCallArgPack() = default;
+
+  /**
+   * @return expected argument count.
+   */
+  size_t size() const override { return tuple.size(); }
+
+  /**
+   * @return reference to the argument tuple.
+   */
+  Object get(size_t idx) const override {
+    cppbind_check_internal(idx < static_cast<size_t>(tuple.size()));
+    /**
+     * operator[] already incremented the reference count of
+     * the returned object, so we can return it directly.
+     */
+    return tuple[idx];
+  }
+
+private:
+  const Tuple &tuple;
+};
+
+/**
+ * Implementation of unpacking arguments and calling the function.
+ */
+template <size_t Idx, typename Callable, typename RetType,
+          typename... RestElements>
+struct NativeCallImpl;
+
+/**
+ * Unpack one argument, and forward the rest to the next level of recursion.
+ */
+template <size_t Idx, typename Callable, typename RetType, typename Head,
+          typename... RestElements>
+struct NativeCallImpl<Idx, Callable, RetType, Head, RestElements...> {
+  /**
+   * Constructor.
+   */
+  NativeCallImpl(Callable callable, ArgumentPack &arg_pack)
+      : callable(callable), arg_pack(arg_pack) {
+    /*
+     * Like previous version of Py(Vec)Args,
+     * we check number of arguments inside the constructor.
+     */
+    if (unlikely(arg_pack.size() != sizeof...(RestElements) + 1 + Idx)) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
+  ~NativeCallImpl() = default;
+
+  /**
+   * Unpack the argument at index `Idx`, convert it to C++ type `Head`, and
+   * call the next level of recursion with the rest of the arguments.
+   */
+  RetType call(void) {
+    Object arg = arg_pack.get(Idx);
+    auto lower_fn = [this, &arg](RestElements... args) {
+      return this->callable(from<Head>(arg.ptr), args...);
+    };
+    NativeCallImpl<Idx + 1, decltype(lower_fn), RetType, RestElements...>
+        lower_impl(lower_fn, arg_pack);
+    return lower_impl.call();
+  }
+
+private:
+  Callable callable;
+  ArgumentPack &arg_pack;
+};
+
+/**
+ * Base of the ending the recursion of inheritance.
+ */
+template <size_t Idx, typename Callable, typename RetType, typename Arg>
+struct NativeCallImpl<Idx, Callable, RetType, Arg> {
+  /**
+   * Constructor.
+   */
+  NativeCallImpl(Callable callable, ArgumentPack &arg_pack)
+      : callable(callable), arg_pack(arg_pack) {
+    if (unlikely(arg_pack.size() != Idx + 1)) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
+  ~NativeCallImpl() = default;
+
+  /**
+   * Forward the last argument to the callable.
+   */
+  RetType call(void) {
+    Object arg = arg_pack.get(Idx);
+    return callable(from<Arg>(arg.ptr));
+  }
+
+private:
+  Callable callable;
+  ArgumentPack &arg_pack;
+};
+
+/**
+ * Specialization for no argument functions.
+ */
+template <size_t Idx, typename Callable, typename RetType>
+struct NativeCallImpl<Idx, Callable, RetType> {
+  /**
+   * Constructor.
+   */
+  NativeCallImpl(Callable callable, ArgumentPack &arg_pack)
+      : callable(callable), arg_pack(arg_pack) {
+    if (arg_pack.size() != 0) {
+      throw std::invalid_argument("argument count mismatch");
+    }
+  }
+  ~NativeCallImpl() = default;
+
+  /**
+   * Simply invoke the callable without unpacking any argument.
+   */
+  RetType call(void) { return callable(); }
+
+private:
+  Callable callable;
+  ArgumentPack &arg_pack;
+};
+
+/**
  * Unpack arguments and convert them to C++ types, then call the function.
  *
  * @param RetType the return type of the function to call.
  * @param Elements the argument types of the function to call.
  */
-template <size_t Idx, typename RetType, typename... Elements> struct PyArgs;
+template <size_t Idx, typename RetType, typename... Elements> struct PyArgs {
+  /**
+   * Initialization from {@link Tuple}.
+   */
+  PyArgs(const Tuple &tp) : arg_pack(tp) {}
+
+  /**
+   * Forward the arguments using {@link NativeCallImpl}, and get return value.
+   */
+  RetType call(std::function<RetType(Elements...)> fn) {
+    NativeCallImpl<0, decltype(fn), RetType, Elements...> impl(fn, arg_pack);
+    return impl.call();
+  }
+
+private:
+  PyCallArgPack arg_pack;
+};
 
 /**
  * Unpack arguments and convert them to C++ types, then call the function.
  */
 template <size_t Idx, typename RetType, typename... Elements>
-struct PyVecCallArgs;
-
-/**
- * Specialization for no argument functions.
- */
-template <size_t Idx, typename RetType> struct PyArgs<Idx, RetType> {
+struct PyVecCallArgs {
   /**
-   * Initialization from {@link Tuple}.
-   */
-  PyArgs(const Tuple &tp) {
-    if (tp.size() != 0) {
-      throw std::invalid_argument("argument count mismatch");
-    }
-  }
-
-  /**
-   * Call the function `fn` with no argument.
-   */
-  RetType call(std::function<RetType()> fn) { return fn(); }
-};
-
-/**
- * Specialization for no argument vector-call functions (`METH_FASTCALL`).
- */
-template <size_t Idx, typename RetType> struct PyVecCallArgs<Idx, RetType> {
-  /**
-   * Initialization from vector call arguments. `nargs` should be 0.
-   */
-  PyVecCallArgs(PyObject *const *args, Py_ssize_t nargs) {
-    if (nargs != 0) {
-      throw std::invalid_argument("argument count mismatch");
-    }
-  }
-
-  /**
-   * Call the function `fn` with no argument.
-   */
-  RetType call(std::function<RetType()> fn) { return fn(); }
-};
-
-/**
- * Base of the ending the recursion of inheritance.
- */
-template <size_t Idx, typename RetType, typename Head>
-struct PyArgs<Idx, RetType, Head> {
-  /**
-   * Initialization from {@link Tuple}.
-   */
-  PyArgs(const Tuple &tp) : tuple(tp) {}
-
-  /**
-   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
-   * call the function `fn` with the converted argument.
-   */
-  RetType call(std::function<RetType(Head)> fn) {
-    PyObject *obj = tuple[Idx] /* cppbind::Object */.ptr;
-    return fn(from<Head>(obj));
-  }
-
-  /**
-   * Expected argument count.
-   */
-  virtual size_t size() const { return Idx + 1; }
-
-protected:
-  /**
-   * @return reference to {@link tuple}.
-   */
-  virtual const Tuple &get_args() const { return tuple; }
-
-  /**
-   * Reference to the function call arguments.
-   */
-  const Tuple &tuple;
-};
-
-/**
- * Base of the ending the recursion of inheritance.
- */
-template <size_t Idx, typename RetType, typename Head>
-struct PyVecCallArgs<Idx, RetType, Head> {
-  /**
-   * Initialization from vector call arguments. `nargs`
-   * should be equal to `size()`.
+   * Initialization from fastcall arguments.
    */
   PyVecCallArgs(PyObject *const *args, Py_ssize_t nargs)
-      : args(args), nargs(nargs) {
-    if (nargs != Idx + 1) {
-      throw std::invalid_argument("argument count mismatch");
-    }
+      : arg_pack(args, nargs) {}
+
+  /**
+   * Forward the arguments using {@link NativeCallImpl}, and get return value.
+   */
+  RetType call(std::function<RetType(Elements...)> fn) {
+    NativeCallImpl<0, decltype(fn), RetType, Elements...> impl(fn, arg_pack);
+    return impl.call();
   }
 
-  /**
-   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
-   * call the function `fn` with the converted argument.
-   */
-  RetType call(std::function<RetType(Head)> fn) {
-    cppbind_check_internal(Idx < static_cast<size_t>(nargs));
-    PyObject *obj = args[Idx];
-    return fn(from<Head>(obj));
-  }
-
-  /**
-   * @return expected argument count.
-   */
-  virtual size_t size() const { return Idx + 1; }
-
-protected:
-  /**
-   * Pointer to the function call arguments.
-   */
-  PyObject *const *args;
-
-  /**
-   * Actual number of arguments (expected # arguments is size()).
-   */
-  Py_ssize_t nargs;
-};
-
-/**
- * Recursively unpack arguments and convert them to C++ types.
- */
-template <size_t Idx, typename RetType, typename Head, typename... RestElements>
-struct PyArgs<Idx, RetType, Head, RestElements...>
-    : public PyArgs<Idx + 1, RetType, RestElements...> {
-
-  /**
-   * Initialization from arguments (tuple)
-   */
-  PyArgs<Idx, RetType, Head, RestElements...>(const Tuple &tp)
-      : PyArgs<Idx + 1, RetType, RestElements...>(tp) {}
-
-  /**
-   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
-   * call the function `fn` with the converted argument and the rest of the
-   * arguments.
-   */
-  RetType call(std::function<RetType(Head, RestElements...)> fn) {
-    auto lower_fn = [&](RestElements... args) {
-      const auto &tuple = get_args();
-      return fn(from<Head>(tuple[Idx].ptr), args...);
-    };
-
-    return PyArgs<Idx + 1, RetType, RestElements...>::call(lower_fn);
-  }
-
-  /**
-   * @return expected argument count.
-   */
-  size_t size() const override {
-    return PyArgs<Idx + 1, RetType, RestElements...>::size();
-  }
-
-protected:
-  /**
-   * @return reference to `this->tuple`.
-   */
-  const Tuple &get_args() const override {
-    return PyArgs<Idx + 1, RetType, RestElements...>::get_args();
-  }
-};
-
-/**
- * Recursively unpack arguments and convert them to C++ types.
- */
-template <size_t Idx, typename RetType, typename Head, typename... RestElements>
-struct PyVecCallArgs<Idx, RetType, Head, RestElements...>
-    : public PyVecCallArgs<Idx + 1, RetType, RestElements...> {
-
-  /**
-   * Initialization from vector call arguments. `nargs`
-   * should be equal to `size()`.
-   */
-  PyVecCallArgs<Idx, RetType, Head, RestElements...>(PyObject *const *args,
-                                                     Py_ssize_t nargs)
-      : PyVecCallArgs<Idx + 1, RetType, RestElements...>(args, nargs) {}
-
-  /**
-   * Unpack the argument at index `Idx` and convert it to C++ type `Head`, then
-   * call the function `fn` with the converted argument.
-   */
-  RetType call(std::function<RetType(Head, RestElements...)> fn) {
-    auto lower_fn = [&](RestElements... args) {
-      return fn(from<Head>(this->args[Idx]), args...);
-    };
-
-    return PyVecCallArgs<Idx + 1, RetType, RestElements...>::call(lower_fn);
-  }
-
-  /**
-   * @return expected argument count.
-   */
-  size_t size() const override {
-    return PyVecCallArgs<Idx + 1, RetType, RestElements...>::size();
-  }
+private:
+  PyVecCallArgPack arg_pack;
 };
 
 /**
