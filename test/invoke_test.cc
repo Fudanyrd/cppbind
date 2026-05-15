@@ -35,7 +35,11 @@ struct VecObject {
   PyObject pyobj;
   char mem_for_vec[sizeof(std::vector<long>)];
 
-  VecObject() : pyobj{1000, nullptr} { new (mem_for_vec) std::vector<long>(); }
+  static constexpr Py_ssize_t INIT_REFCNT = 1000;
+
+  VecObject() : pyobj{INIT_REFCNT, nullptr} {
+    new (mem_for_vec) std::vector<long>();
+  }
 };
 
 /**
@@ -43,7 +47,7 @@ struct VecObject {
  * C++ types. TODO:
  */
 template <> std::vector<long> &from<std::vector<long> &>(PyObject *obj) {
-  VecObject *vec_obj = reinterpret_cast<VecObject *>(obj);
+  auto *vec_obj = reinterpret_cast<VecObject *>(obj);
   return *reinterpret_cast<std::vector<long> *>(vec_obj->mem_for_vec);
 }
 
