@@ -199,6 +199,59 @@ template <typename _Tp> constexpr bool is_copyable_ty() {
   return can_copy_impl<_Tp>(0);
 }
 
+/**
+ * Helper for `is_pointer_ty`.
+ */
+template <typename _Tp> constexpr bool is_pointer_ty_impl(...) { return false; }
+
+/**
+ * Helper for `is_pointer_ty`.
+ */
+template <typename _Tp>
+constexpr auto is_pointer_ty_impl(int)
+    -> decltype(*std::declval<_Tp>(), std::declval<_Tp &>() = nullptr,
+                std::declval<_Tp &>() = reinterpret_cast<_Tp>(42),
+                std::declval<_Tp &>()++, std::declval<_Tp &>()--, true) {
+  return true;
+}
+
+/**
+ * @return true if _Tp is a pointer type.
+ */
+template <typename _Tp> constexpr bool is_pointer_ty() {
+  return is_pointer_ty_impl<_Tp>(0);
+}
+
+/**
+ * Helper for `is_pyobject_ty`.
+ */
+template <typename _Tp> constexpr bool is_pyobject_ty() { return false; }
+
+/**
+ * @return true for PyObject type.
+ */
+template <> constexpr bool is_pyobject_ty<PyObject>() { return true; }
+
+/**
+ * helper for `is_pyobject_ptr_ty`.
+ */
+template <typename _Tp> constexpr bool is_pyobject_ptr_ty() { return false; }
+
+/**
+ * @return true for PyObject pointer type.
+ */
+template <> constexpr bool is_pyobject_ptr_ty<PyObject *>() { return true; }
+
+/**
+ * Helper for `is_pyobject_wrap`.
+ */
+template <typename _Tp> constexpr bool is_pyobject_wrap_ty() { return false; }
+
+/**
+ * @return true for `cppbind::Object`
+ */
+template <> constexpr bool is_pyobject_wrap_ty<Object>() { return true; }
+
 } /* namespace cppbind */
 
 #endif /* __COMMON_H__ */

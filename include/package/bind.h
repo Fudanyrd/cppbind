@@ -196,7 +196,7 @@ template <> struct CppObject<void> {
       PyObject *self, PyObject *args, PyObject *kwargs,                        \
       RetTy (*fn)(PyObject *, PyObject *, PyObject *)) {                       \
     auto ret = fn(self, args, kwargs);                                         \
-    return into<decltype(ret)>(ret).unwrap();                                  \
+    return into<RetTy>(ret).unwrap();                                          \
   }                                                                            \
   template <typename RetTy,                                                    \
             ::std::__enable_if_t<                                              \
@@ -394,7 +394,9 @@ has_cast_to(long) has_cast_to(double)
         cpp_all_binary_operators(has_binary_operator);
 #undef cpp_all_binary_operators
 
-template <typename _Tp, std::__enable_if_t<!has_eq<_Tp>(), bool> = true>
+template <
+    typename _Tp,
+    std::__enable_if_t<!has_eq<_Tp>() || (!is_copyable_ty<_Tp>()), bool> = true>
 inline constexpr richcmpfunc synthesize_richcmp(void) {
   return nullptr;
 }
@@ -402,8 +404,9 @@ inline constexpr richcmpfunc synthesize_richcmp(void) {
 /**
  * For types that has equality but not partial order.
  */
-template <typename _Tp,
-          std::__enable_if_t<has_eq<_Tp>() && (!has_lt<_Tp>()), bool> = true>
+template <typename _Tp, std::__enable_if_t<has_eq<_Tp>() && (!has_lt<_Tp>()) &&
+                                               is_copyable_ty<_Tp>(),
+                                           bool> = true>
 inline constexpr richcmpfunc synthesize_richcmp(void) {
   return [](PyObject *a, PyObject *b, int op) -> PyObject * {
     if (op != Py_EQ && op != Py_NE) {
@@ -416,8 +419,7 @@ inline constexpr richcmpfunc synthesize_richcmp(void) {
       const _Tp &rhs = *CppObject<_Tp>::get_payload(b);
       is_eq = (lhs == rhs);
     } else {
-      _Tp rhs;
-      rhs = from<_Tp>(b);
+      _Tp rhs = from<_Tp>(b);
       is_eq = (lhs == rhs);
     }
     bool res = (op == Py_EQ) ? is_eq : (!is_eq);
@@ -428,8 +430,9 @@ inline constexpr richcmpfunc synthesize_richcmp(void) {
 /**
  * For types that has partial order.
  */
-template <typename _Tp,
-          std::__enable_if_t<has_eq<_Tp>() && has_lt<_Tp>(), bool> = true>
+template <typename _Tp, std::__enable_if_t<has_eq<_Tp>() && has_lt<_Tp>() &&
+                                               is_copyable_ty<_Tp>(),
+                                           bool> = true>
 inline constexpr richcmpfunc synthesize_richcmp(void) {
   return [](PyObject *a, PyObject *b, int op) -> PyObject * {
     const _Tp &lhs = *CppObject<_Tp>::get_payload(a);
@@ -472,8 +475,7 @@ inline constexpr richcmpfunc synthesize_richcmp(void) {
 
       perform_richcmp;
     } else {
-      _Tp rhs;
-      rhs = from<_Tp>(b);
+      _Tp rhs = from<_Tp>(b);
       perform_richcmp;
     }
 

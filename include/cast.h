@@ -13,9 +13,50 @@
 namespace cppbind {
 
 /**
+ * Template specialization for `Object`.
+ */
+template <typename T, std::__enable_if_t<is_pyobject_wrap_ty<T>(), bool> = true>
+inline Object from(PyObject *obj) {
+  Py_INCREF(obj); /* borrow a reference to obj. */
+  return Object{obj};
+}
+
+/**
+ * Template specialization for `PyObject *`.
+ */
+template <typename T, std::__enable_if_t<(!is_pyobject_wrap_ty<T>()) &&
+                                             is_pyobject_ptr_ty<T>(),
+                                         bool> = true>
+inline PyObject *from(PyObject *obj) {
+  return obj;
+}
+
+/**
+ * Template specialization for pointer types (except `PyObject *`).
+ */
+template <typename T,
+          std::__enable_if_t<!is_pyobject_wrap_ty<T>() &&
+                                 !is_pyobject_ptr_ty<T>() && is_pointer_ty<T>(),
+                             bool> = true>
+inline T from(PyObject *obj) {
+  cppbind_check_internal(obj != nullptr);
+  return reinterpret_cast<T>(obj + 1);
+}
+
+/**
  * Convert to C++ types via this template function.
  */
-template <typename T> inline T from(PyObject *obj) {
+template <typename T,
+          std::__enable_if_t<(!is_pyobject_wrap_ty<T>()) &&
+                                 (!is_pyobject_ptr_ty<T>()) &&
+                                 (!is_pointer_ty<T>()) && is_copyable_ty<T>(),
+                             bool> = true>
+inline T from(PyObject *obj) {
+  /* is reference type copyable? */
+  static_assert(is_copyable_ty<int *>(), "pointer type should be copyable");
+  static_assert(is_pointer_ty<int *>(),
+                "pointer type should be detected as pointer");
+
   cppbind_check_internal(obj != nullptr);
   /**
    * For a custom CPython class layout, the
@@ -26,19 +67,6 @@ template <typename T> inline T from(PyObject *obj) {
    * cast to `T *`.
    */
   return *reinterpret_cast<T *>(obj + 1);
-}
-
-/**
- * Template specialization for `PyObject *`.
- */
-template <> inline PyObject *from<PyObject *>(PyObject *obj) { return obj; }
-
-/**
- * Template specialization for `Object`.
- */
-template <> inline Object from<Object>(PyObject *obj) {
-  Py_INCREF(obj); /* borrow a reference to obj. */
-  return Object{obj};
 }
 
 #define cppbind_from_on_type_mismatch                                          \

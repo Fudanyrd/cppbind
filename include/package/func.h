@@ -195,6 +195,10 @@ public:
   template <>                                                                  \
   PyTypeObject * ::cppbind::MethodWrapper<callable_type>::method_type =        \
       nullptr
+
+#define method_wrapper_static_members_declare(callable_type)                   \
+  template <>                                                                  \
+  PyTypeObject * ::cppbind::MethodWrapper<callable_type>::method_type
 };
 
 template <typename Callable>
