@@ -48,7 +48,7 @@ jobs:
         run: sudo sh script/ci-init.sh
       - name: Check Formatting
         working-directory: .
-        run: sh script/ci-format.sh
+        run: sh script/ci-check-fmt.sh
       - name: Run Tests
         working-directory: .
         run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} CXXSTD=${{matrix.config.std}} sh script/ci-test.sh

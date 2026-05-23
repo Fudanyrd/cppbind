@@ -72,7 +72,6 @@ cppbind/
 │   ├── cast.h         # PyObject ↔ C++ type conversion
 │   ├── traceback.h    # Python traceback utilities
 │   ├── stl.h          # stringify, operator<<
-│   ├── template.h     # Style reference only
 │   ├── container/     # Dict, List, Str, Bytes, Tuple
 │   ├── numeric/       # Long, Float
 │   └── package/       # func.h, type.h, mod.h, invoke.h
@@ -138,8 +137,6 @@ Shows how to use cppbind with `scikit-build` (CMake + `setup.py`) for pip-instal
 ## Notes
 
 - This was written as a learning project — the API reflects someone figuring out CPython internals. It works, but don't expect production polish.
-- `include/template.h` is labeled "only for style reference" — a potential PIMPL pattern that wasn't finished.
-- In `cast.h`, `PyObject` is not defined for `into<PyObject *>(PyObject *pt)` — this is a known gap. The identity cast specialization is missing.
 - The project uses `clang-tidy` annotations extensively (`NOLINTBEGIN`/`NOLINTEND`) to document intentional style decisions.
 
 ## License
