@@ -15,7 +15,7 @@ namespace cppbind {
 /**
  * Template specialization for `Object`.
  */
-template <typename T, std::__enable_if_t<is_pyobject_wrap_ty<T>(), bool> = true>
+template <typename T, std::__enable_if_t<is_object_ty<T>(), bool> = true>
 inline Object from(PyObject *obj) {
   Py_INCREF(obj); /* borrow a reference to obj. */
   return Object{obj};
@@ -24,9 +24,9 @@ inline Object from(PyObject *obj) {
 /**
  * Template specialization for `PyObject *`.
  */
-template <typename T, std::__enable_if_t<(!is_pyobject_wrap_ty<T>()) &&
-                                             is_pyobject_ptr_ty<T>(),
-                                         bool> = true>
+template <typename T,
+          std::__enable_if_t<(!is_object_ty<T>()) && is_pyobject_ptr_ty<T>(),
+                             bool> = true>
 inline PyObject *from(PyObject *obj) {
   return obj;
 }
@@ -35,8 +35,8 @@ inline PyObject *from(PyObject *obj) {
  * Template specialization for pointer types (except `PyObject *`).
  */
 template <typename T,
-          std::__enable_if_t<!is_pyobject_wrap_ty<T>() &&
-                                 !is_pyobject_ptr_ty<T>() && is_pointer_ty<T>(),
+          std::__enable_if_t<!is_object_ty<T>() && !is_pyobject_ptr_ty<T>() &&
+                                 is_pointer_ty<T>(),
                              bool> = true>
 inline T from(PyObject *obj) {
   cppbind_check_internal(obj != nullptr);
@@ -46,11 +46,10 @@ inline T from(PyObject *obj) {
 /**
  * Convert to C++ types via this template function.
  */
-template <typename T,
-          std::__enable_if_t<(!is_pyobject_wrap_ty<T>()) &&
-                                 (!is_pyobject_ptr_ty<T>()) &&
-                                 (!is_pointer_ty<T>()) && is_copyable_ty<T>(),
-                             bool> = true>
+template <typename T, std::__enable_if_t<
+                          (!is_object_ty<T>()) && (!is_pyobject_ptr_ty<T>()) &&
+                              (!is_pointer_ty<T>()) && is_copyable_ty<T>(),
+                          bool> = true>
 inline T from(PyObject *obj) {
   /* is reference type copyable? */
   static_assert(is_copyable_ty<int *>(), "pointer type should be copyable");

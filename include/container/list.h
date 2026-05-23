@@ -101,6 +101,12 @@ public:
   List(void) : obj(PyList_New(0)) {}
 
   /**
+   * Construct from PyObject pointer. Only used in
+   * function `from` and `into`.
+   */
+  List(PyObject *ob) : obj(ob) { cppbind_check_internal(PyList_Check(ob)); }
+
+  /**
    * Borrow a strong reference to python list other.
    * It will check that `other` holds a python list
    * only when internal assertion is enabled.

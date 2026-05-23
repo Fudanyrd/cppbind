@@ -66,6 +66,12 @@ public:
   }
 
   /**
+   * Construct from PyObject pointer. Only used in
+   * function `from` and `into`.
+   */
+  Str(PyObject *ob) : obj(ob) { cppbind_check_internal(PyUnicode_Check(ob)); }
+
+  /**
    * Append the content `other` to the back of this string.
    * Equivalent to python `self += other`.
    */

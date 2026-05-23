@@ -52,6 +52,12 @@ public:
   Dict(const Object &ob) : obj(ob) {
     cppbind_check_internal(PyDict_Check(ob.ptr));
   }
+
+  /**
+   * Construct from PyObject pointer. Only used in
+   * function `from` and `into`.
+   */
+  Dict(PyObject *ob) : obj(ob) { cppbind_check_internal(PyDict_Check(ob)); }
   ~Dict() = default;
 
   /**
