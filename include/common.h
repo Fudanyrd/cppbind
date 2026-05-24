@@ -151,6 +151,16 @@ template <typename T> constexpr bool is_void_ty() { return false; }
 template <> constexpr bool is_void_ty<void>() { return true; }
 
 /**
+ * @return `true` if `_Tp` is `const char *`; `false` otherwise.
+ */
+template <typename _Tp> constexpr bool is_pkc_ty() { return false; }
+
+/**
+ * @return `true` if `_Tp` is `const char *`; `false` otherwise.
+ */
+template <> constexpr bool is_pkc_ty<const char *>() { return true; }
+
+/**
  * @return true if `_Tp` has `Object object()`.
  */
 template <typename _Tp> constexpr bool is_object_ty() { return false; }
@@ -251,6 +261,13 @@ template <typename _Tp> constexpr bool is_pyobject_wrap_ty() { return false; }
  * @return true for `cppbind::Object`
  */
 template <> constexpr bool is_pyobject_wrap_ty<Object>() { return true; }
+
+/**
+ * Check whether _Tp is an abstract (purely virtual) type.
+ */
+template <typename _Tp> constexpr bool is_abstract_ty() {
+  return std::is_abstract<_Tp>::value;
+}
 
 } /* namespace cppbind */
 

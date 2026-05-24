@@ -870,6 +870,50 @@ void cpp_type_initialize_number(PyNumberMethods *method) {
         num_data_members;                                                      \
   } while (0)
 
+#define cpp_get_type_object(cpp_class)                                         \
+  (::cppbind::Type<::cppbind::CppObject<cpp_class>>::instance)
+
+/**
+ * Register base classes for a C++ class. This should be called
+ * in a {@link cppbind::RestInitFn} after
+ * {@link cpp_type_init}, because it needs the type object to
+ * be created and assigned to {@link Type}.
+ *
+ * Example usage:
+ * <blockquote><pre>
+ * struct Base { };
+ * struct Ext : public Base { };
+ *
+ * // an X-macro of all the base types.
+ * #define foreach_base_ty(X) X(Base)
+ * // in a RestInitFn
+ * cpp_type_register_bases(Ext, foreach_base_ty)
+ * </pre></blockquote>
+ */
+#define cpp_type_register_bases(cpp_class, foreach_base_ty)                    \
+  do {                                                                         \
+    auto *ty_obj_this = cpp_get_type_object(cpp_class);                        \
+    PyTypeObject *base_ty_objs[] = {foreach_base_ty(cpp_get_type_object)};     \
+    auto num_bases = sizeof(base_ty_objs) / sizeof(PyTypeObject *);            \
+    if (num_bases > 1) {                                                       \
+      /* at least 2 base types. Set tp_bases with a tuple. */                  \
+      auto *bases_tuple = PyTuple_New(num_bases);                              \
+      if (bases_tuple == nullptr) {                                            \
+        PyErr_SetString(PyExc_RuntimeError, "failed to create bases tuple");   \
+        return (1);                                                            \
+      }                                                                        \
+      for (size_t i = 0; i < num_bases; i++) {                                 \
+        Py_INCREF(base_ty_objs[i]); /* PyTuple_SetItem steals reference. */    \
+        PyTuple_SetItem(bases_tuple, i, (PyObject *)base_ty_objs[i]);          \
+      }                                                                        \
+      ty_obj_this->tp_bases = bases_tuple;                                     \
+    } else {                                                                   \
+      /* only one base type. set tp_base instead. */                           \
+      Py_INCREF(base_ty_objs[0]); /* tp_base is a strong reference. */         \
+      ty_obj_this->tp_base = base_ty_objs[0];                                  \
+    }                                                                          \
+  } while (0)
+
 } /* namespace cppbind */
 
 #endif /* __PACKAGE_BIND_H__ */

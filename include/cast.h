@@ -138,7 +138,7 @@ namespace cppbind {
 template <typename _Tp,
           std::__enable_if_t<!is_integer_ty<_Tp>() && !is_fp_ty<_Tp>() &&
                                  !is_object_ty<_Tp>() && !is_pair_ty<_Tp>() &&
-                                 !is_bool_ty<_Tp>(),
+                                 !is_bool_ty<_Tp>() && !is_pkc_ty<_Tp>(),
                              bool> = true>
 inline Object into(_Tp value) {
   /* For internal testing, trigger an assertion failure. */
@@ -148,6 +148,14 @@ inline Object into(_Tp value) {
   PyErr_SetString(PyExc_TypeError,
                   "unsupported type for conversion to Python object");
   return Object{nullptr};
+}
+
+/**
+ * Convert a `const char *` to a python str object.
+ */
+template <typename _Tp, std::__enable_if_t<is_pkc_ty<_Tp>(), bool> = true>
+inline Object into(_Tp value) {
+  return Str(value).object();
 }
 
 template <typename _Tp, std::__enable_if_t<is_object_ty<_Tp>(), bool> = true>
