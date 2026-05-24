@@ -138,7 +138,9 @@ template <> struct CppObject<void> {
 #define staticize_destructor(cpp_class)                                        \
   static void del(PyObject *self) {                                            \
     cpp_class *cppobj = get_payload(self);                                     \
-    cppobj->~cpp_class();                                                      \
+    if (!::cppbind::is_abstract_ty<cpp_class>()) {                             \
+      cppobj->~cpp_class();                                                    \
+    }                                                                          \
   }
 
 /**
@@ -174,6 +176,64 @@ template <> struct CppObject<void> {
       }),
 
 /**
+ * A helper class that generates the layout of the Python object for
+ * a C++ class, and provides a function to get the pointer to the
+ * payload of the Python object.
+ */
+template <typename CppClass, bool IsAbstract> struct LayoutImpl;
+
+/**
+ * Specialization for non-abstract class.
+ */
+template <typename CppClass> struct LayoutImpl<CppClass, false> {
+  /**
+   * Layout for the C++ class, which has a PyObject at its header.
+   */
+  using layout_t = struct {
+    /**
+     * Head: a PyObject.
+     */
+    PyObject pyobj;
+
+    /**
+     * Rest: the C++ object, a.k.a. the payload.
+     */
+    CppClass payload;
+  };
+
+  /**
+   * @return pointer to the underlying C++ object.
+   */
+  static inline CppClass *get_payload(PyObject *obj) {
+    return &(reinterpret_cast<layout_t *>(obj)->payload);
+  }
+};
+
+/**
+ * Specialization for abstract class.
+ */
+template <typename CppClass> struct LayoutImpl<CppClass, true> {
+  /**
+   * Layout for the C++ class, which has a PyObject at its header.
+   * It does not contain a C++ object to save space.
+   */
+  using layout_t = struct {
+    /**
+     * Head: a PyObject.
+     */
+    PyObject pyobj;
+  };
+
+  /**
+   * @return a non-null pointer but should not be read/written to,
+   * since the class is abstract.
+   */
+  static inline CppClass *get_payload(PyObject *obj) {
+    return reinterpret_cast<CppClass *>(obj + 1);
+  }
+};
+
+/**
  * Common member types and functions for `CppObject<cpp_class>`.
  * Starting from these, user can simply use `cpp_class_wrapper`, or
  * define custom member functions.
@@ -182,12 +242,12 @@ template <> struct CppObject<void> {
  */
 #define cpp_class_wrapper_common(cpp_class)                                    \
   using payload_t = cpp_class;                                                 \
-  using layout_t = struct {                                                    \
-    PyObject pyobj;                                                            \
-    cpp_class payload;                                                         \
-  };                                                                           \
+  using layout_t =                                                             \
+      LayoutImpl<cpp_class,                                                    \
+                 (::cppbind::is_abstract_ty<cpp_class>())>::layout_t;          \
   static inline payload_t *get_payload(PyObject *obj) {                        \
-    return &(reinterpret_cast<layout_t *>(obj)->payload);                      \
+    return LayoutImpl<                                                         \
+        cpp_class, ::cppbind::is_abstract_ty<cpp_class>()>::get_payload(obj);  \
   }                                                                            \
   template <typename RetTy, ::std::__enable_if_t<(!is_void_ty<RetTy>()) &&     \
                                                      is_copyable_ty<RetTy>(),  \
@@ -240,10 +300,44 @@ template <> struct CppObject<void> {
 /**
  * Synthesize a constructor of a C++ class. It will generate a wrapper function.
  */
+template <typename CppClass, bool IsAbstract> struct SynthesizeConstructorImpl;
+
+/**
+ * Specialization for abstract class.
+ */
+template <typename CppClass> struct SynthesizeConstructorImpl<CppClass, true> {
+  /**
+   * @return a function wrapper of the constructor.
+   */
+  template <typename... Args>
+  static inline ::std::function<void(Args...)> get(PyObject *ptr) {
+    return [](Args...) -> void {};
+  }
+};
+
+/**
+ * Specialization for non-abstract class.
+ */
+template <typename CppClass> struct SynthesizeConstructorImpl<CppClass, false> {
+  /**
+   * @return a function wrapper of the constructor.
+   */
+  template <typename... Args>
+  static inline ::std::function<void(Args...)> get(PyObject *ptr) {
+    return [ptr](Args... args) -> void {
+      CppClass *payload = LayoutImpl<CppClass, false>::get_payload(ptr);
+      new (payload) CppClass(args...);
+    };
+  }
+};
+
+/**
+ * Synthesize a constructor of a C++ class. It will generate a wrapper function.
+ */
 template <typename CppClass, typename... Args>
 ::std::function<void(Args...)> synthesize_constructor(PyObject *buf) {
-  auto *ptr = CppObject<CppClass>::get_payload(buf);
-  return [ptr](Args... args) -> void { new (ptr) CppClass(args...); };
+  return SynthesizeConstructorImpl<
+      CppClass, is_abstract_ty<CppClass>()>::template get<Args...>(buf);
 }
 
 /**

@@ -3,7 +3,7 @@
 #define this_package "ext"
 
 struct Animal {
-  virtual const char *make_noise() { return ""; }
+  virtual const char *make_noise() = 0;
 };
 
 struct Cat final : public Animal {
@@ -46,6 +46,12 @@ static int rest_init() {
   return 0;
 }
 
+/**
+ * NOTE: normally, a purely virtual C++ class (like `Animal`) cannot be
+ * instantiated, so it does not make sense to register it in module
+ * initialization. However, for demonstration purposes, we still register it
+ * here.
+ */
 gen_modinit_fn_from_fns(ext, &rest_init, nullptr, nullptr, nullptr,
                         {"Cat",
                          (PyCFunction)cppbind::staticize_constructor<Cat>,
