@@ -527,11 +527,12 @@ inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
 
 #define gen_default_arg_builtin_function(cpp_function, RetType, ...)           \
   [](PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {  \
-    default_arg_handler(cpp_function) handler;                                 \
     try {                                                                      \
       return ::cppbind::fastcall_and_into<RetType>(                            \
           [](PyObject *, PyObject *const *args, Py_ssize_t nargs) -> RetType { \
-            return handler.call(::cppbind::PyVecCallArgPack(args, nargs));     \
+            default_arg_handler(cpp_function) handler;                         \
+            auto pack = ::cppbind::PyVecCallArgPack(args, nargs);              \
+            return handler.call(pack);                                         \
           },                                                                   \
           args, nargs);                                                        \
     } catch (::std::exception & ex) {                                          \

@@ -8,7 +8,7 @@ using cppbind::Long;
 using cppbind::Object;
 using cppbind::Tuple;
 
-static long myadd(long a, long b) noexcept { return a + b; }
+static long myadd(long a, long b = 42) noexcept { return a + b; }
 
 extern "C" PyObject *mysum(PyObject *self, PyObject *args) {
   __static_assert(cppbind::CFunction_flags<decltype(&mysum)>());
@@ -81,10 +81,12 @@ extern "C" PyObject *always_throw(PyObject *self, PyObject *const *args,
   return nullptr;
 }
 
+make_default_arg_handler(myadd, long, long, long);
+
 gen_modinit_fn_from_fns(
     /* name */ myabc, nullptr, nullptr, nullptr, nullptr,
-    gen_builtin_function_def(myadd, ":returns: sum of two integers", long, long,
-                             long),
+    gen_default_arg_builtin_function_def(myadd, ":returns: sum of two integers",
+                                         long, long, long),
     gen_PyMethodDef_doc(mysum, ":returns: sum of all integers"),
     gen_PyMethodDef_doc(mysum_vec, ":returns: sum of all integers"),
     gen_PyMethodDef_doc(kwarg_names,
