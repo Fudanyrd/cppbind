@@ -154,29 +154,29 @@ TEST(InvokeVec, DefaultArg) {
       Long(3L).object().ptr,
   };
 
-  default_arg_handler(add3) handler;
   /* Try omitting one default argument. */
   {
-    auto Args = PyVecCallArgPack(args, 2);
-    long ret = handler.call(Args);
+    auto packed_args = PyVecCallArgPack(args, 2);
+    long ret = default_arg_handler(add3)::call(packed_args);
     ASSERT_EQ(ret, add3(1L, 2L));
   }
 
   /* Try calling with normal number of arguments. */
   {
-    auto Args = PyVecCallArgPack(args, 3);
-    long ret = handler.call(Args);
+    auto packed_args = PyVecCallArgPack(args, 3);
+    long ret = default_arg_handler(add3)::call(packed_args);
     ASSERT_EQ(ret, add3(1L, 2L, 3L));
   }
 
   /* Try too few arguments. */
   {
-    auto Args = PyVecCallArgPack(args, 1);
+    auto packed_args = PyVecCallArgPack(args, 1);
     try {
-      handler.call(Args);
+      default_arg_handler(add3)::call(packed_args);
       FAIL() << "expected to throw due to too few arguments";
     } catch (const std::invalid_argument &ex) {
       /* Expecting an exception. */
+      std::cerr << ex.what() << '\n';
     }
   }
 }
