@@ -14,6 +14,12 @@ static void vec_push(vector<long> &vec, long value) { vec.push_back(value); }
 static const long MAGIC_NUM = 42L;
 static long magic() { return MAGIC_NUM; }
 
+static long add3(long a, long b, long c = MAGIC_NUM) { return a + b + c; }
+
+struct default_arg_handler(add3);
+make_default_arg_handler(add3, /* return type */ long,
+                         /* parameter list */ long, long, long);
+
 static std::unique_ptr<long> cxx_uniq_ptr(PyObject *self, PyObject *const *args,
                                           Py_ssize_t nargs) {
 #if __cplusplus >= 201402L
@@ -139,6 +145,40 @@ TEST(InvokeVec, NonCopy) {
 
   Long value{pt};
   ASSERT_EQ((long)value, MAGIC_NUM);
+}
+
+TEST(InvokeVec, DefaultArg) {
+  PyObject *args[] = {
+      Long(1L).object().ptr,
+      Long(2L).object().ptr,
+      Long(3L).object().ptr,
+  };
+
+  default_arg_handler(add3) handler;
+  /* Try omitting one default argument. */
+  {
+    auto Args = PyVecCallArgPack(args, 2);
+    long ret = handler.call(Args);
+    ASSERT_EQ(ret, add3(1L, 2L));
+  }
+
+  /* Try calling with normal number of arguments. */
+  {
+    auto Args = PyVecCallArgPack(args, 3);
+    long ret = handler.call(Args);
+    ASSERT_EQ(ret, add3(1L, 2L, 3L));
+  }
+
+  /* Try too few arguments. */
+  {
+    auto Args = PyVecCallArgPack(args, 1);
+    try {
+      handler.call(Args);
+      FAIL() << "expected to throw due to too few arguments";
+    } catch (const std::invalid_argument &ex) {
+      /* Expecting an exception. */
+    }
+  }
 }
 
 } /* namespace cppbind */

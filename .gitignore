@@ -10,7 +10,8 @@ tmp
 *.zip
 
 # .vscode. Keep settings.json.
-c_cpp_properties.json
+.vscode/*
+!.vscode/settings.json
 
 # Doxygen
 html

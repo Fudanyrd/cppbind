@@ -323,6 +323,252 @@ inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
         METH_FASTCALL, func_doc                                                \
   }
 
+/**
+ * Naming conventions for a tester.
+ */
+#define invocable_tester(name) InvocableTester
+
+/**
+ * Naming conventions for a default argument handler.
+ */
+#define default_arg_handler(name) DefaultArgHandlerF##name
+
+/**
+ * For cppbind internal use only.
+ *
+ * Given a C++ function, e.g.
+ * <blockquote><pre>
+ *   long add(long a, long b = 2);
+ *   // works with 2 arguments.
+ *   static_assert(invocable_tester(add)::get<long, long>(), "");
+ *   // works with 1 argument, using default value for the second one.
+ *   static_assert(invocable_tester(add)::get<long>(), "");
+ * </pre></blockquote>
+ * this class detects whether arguments `Args` is compatible with the function.
+ * When compatible, a wrapper function `call_impl` is provided to call the
+ * function with arguments of type `Args`. When not compatible, `call_impl`
+ * will throw an exception.
+ */
+#define make_invocable_tester(function, RetType)                               \
+  struct invocable_tester(function) {                                          \
+  private:                                                                     \
+    template <typename... Args> static constexpr bool get_impl(...) {          \
+      return false;                                                            \
+    }                                                                          \
+    template <typename... Args>                                                \
+    static constexpr auto get_impl(                                            \
+        int) -> decltype(function(::std::declval<Args>()...), false) {         \
+      return true;                                                             \
+    }                                                                          \
+                                                                               \
+  public:                                                                      \
+    template <typename... Args> static constexpr bool get() {                  \
+      return get_impl<Args...>(0);                                             \
+    }                                                                          \
+    template <typename... Args,                                                \
+              ::std::__enable_if_t<get_impl<Args...>(0), bool> = true>         \
+    static inline auto call_impl(                                              \
+        Args... args) -> decltype(function(::std::declval<Args>()...)) {       \
+      return function(args...);                                                \
+    }                                                                          \
+    template <typename... Args,                                                \
+              ::std::__enable_if_t<!get_impl<Args...>(0), bool> = true>        \
+    static inline RetType call_impl(...) {                                     \
+      /* bad: not invocable with the given arguments. */                       \
+      throw ::std::invalid_argument("argument count mismatch");                \
+    }                                                                          \
+  }
+
+/**
+ * For cppbind internal use only.
+ *
+ * It generates definition for a template class `TypePack`. It is used
+ * to truncate a template argument pack (e.g. &lt;long, long, long&gt;
+ * to &lt;long&gt;.
+ *
+ * Caveats: instead of writing TypePack&lt;void&gt;, one should
+ * use TypePack&lt;&gt; to represent an empty type pack.
+ */
+#define _make_type_pack(function, ThisRetType)                                 \
+  template <typename... Args> struct TypePack;                                 \
+  template <typename... Args1, typename... Args2>                              \
+  TypePack<Args1..., Args2...> static type_pack_cat(TypePack<Args1...>,        \
+                                                    TypePack<Args2...>);       \
+  template <typename T> static TypePack<T> make_type_pack(T);                  \
+  template <typename... Args> struct TypePack {                                \
+    using ArgumentPack = ::cppbind::ArgumentPack;                              \
+    TypePack(void);                                                            \
+    using RetType = ThisRetType;                                               \
+    using CallableType = RetType (*)(Args...);                                 \
+    static constexpr bool invocable() {                                        \
+      return invocable_tester(function)::get<Args...>();                       \
+    }                                                                          \
+    static auto call(Args... args) -> RetType {                                \
+      return invocable_tester(function)::call_impl(args...);                   \
+    }                                                                          \
+    static auto call_packed(ArgumentPack &pack) -> RetType {                   \
+      using CallImpl =                                                         \
+          ::cppbind::NativeCallImpl<0, decltype(&call), RetType, Args...>;     \
+      CallImpl impl(&call, pack);                                              \
+      return impl.call();                                                      \
+    }                                                                          \
+    static constexpr int size() { return sizeof...(Args); }                    \
+  };
+
+/**
+ * For cppbind internal use only.
+ *
+ * It generates a TypePackSlice template class. Its function is to implement
+ * truncating template pack. Its arguments:
+ * <ul>
+ *  <li><i>Idx</i>: it is always 0.</li>
+ *  <li><i>LastIdx</i>: the index of the last element to keep. It should be
+ *      less than or equal to the size of the original template pack. </li>
+ * <li><i>Args</i>: the original template pack.</li>
+ * </ul>
+ */
+#define make_type_pack_slice(function, RetType, ...)                           \
+  template <int Idx, int LastIdx, typename... Args> struct TypePackSlice;      \
+  template <int Idx, int LastIdx, typename Head, typename... Args>             \
+  struct TypePackSlice<Idx, LastIdx, Head, Args...>                            \
+      : public TypePackSlice<Idx + 1, LastIdx, Args...> {                      \
+    static_assert(LastIdx <= sizeof...(Args) + Idx,                            \
+                  "LastIdx should be less than sizeof...(Args)");              \
+    using SubTy = TypePackSlice<Idx + 1, LastIdx, Args...>;                    \
+    constexpr TypePackSlice() : SubTy() {}                                     \
+    using NormRetType =                                                        \
+        decltype(type_pack_cat(make_type_pack<Head>(std::declval<Head>()),     \
+                               std::declval<SubTy>().norm()));                 \
+    constexpr NormRetType norm() const;                                        \
+  };                                                                           \
+  template <int LastIdx, typename Head, typename... Args>                      \
+  struct TypePackSlice<LastIdx, LastIdx, Head, Args...> {                      \
+    static_assert(LastIdx <= sizeof...(Args) + LastIdx,                        \
+                  "LastIdx should be less than sizeof...(Args)");              \
+    constexpr TypePackSlice() {}                                               \
+    constexpr TypePack<Head> norm() const;                                     \
+    using NormRetType = TypePack<Head>;                                        \
+  }
+
+/**
+ * For cppbind internal use only.
+ *
+ * C++ 11 does not allow us to use a loop variable to instantiate template
+ * class `TypePackSlice`. We instead use `Range` to
+ * instantiate `TypePackSlice`s, and then  forward a argument
+ * pack based on its size.
+ */
+#define make_range(function, ThisRetType, ...)                                 \
+  template <int Idx, int End, typename... Args> struct Range;                  \
+  template <int Idx, int End, typename Head, typename... Args>                 \
+  struct Range<Idx, End, Head, Args...> {                                      \
+    using TypePackType =                                                       \
+        decltype(std::declval<TypePackSlice<0, Idx, ##__VA_ARGS__>>().norm()); \
+    ThisRetType operator()(::cppbind::ArgumentPack &pack) const {              \
+      if (Idx + 1 == pack.size()) {                                            \
+        return TypePackType::call_packed(pack);                                \
+      }                                                                        \
+      Range<Idx + 1, End, Args...> next_rng;                                   \
+      return next_rng(pack);                                                   \
+    }                                                                          \
+  };                                                                           \
+  template <int End> struct Range<End, End> {                                  \
+    ThisRetType operator()(::cppbind::ArgumentPack &pack) const {              \
+      throw std::invalid_argument("argument count mismatch");                  \
+    }                                                                          \
+  }
+
+/**
+ * It is used to do preparation for binding a C++ function, by generating
+ * a helper class named `make_default_arg_handler(function)`.
+ *
+ * {@link NativeCallImpl} does not handle default argument(s).
+ *
+ * @param function: the C++ function to bind.
+ * @param ThisRetType: the return type of the function.
+ * @param ...: the parameter list of the function. Default arguments should be
+ *             put at the end of the parameter list.
+ *
+ * Note: this should be used in the same namespace as the C++ function.
+ * i.e. the following code does not work:
+ * <blockquote><pre>
+ *   namespace mypkg { long add2(long a, long b = 42); }
+ *   // incorrectly expanded to struct DefaultArgHandlerFmypkg::add2
+ *   make_default_arg_handler(mypkg::add2, long, long, long);
+ *
+ *  // "no function named add2 in the global namespace" error.
+ *   make_default_arg_handler(add2, long, long, long);
+ * </pre></blockquote>
+ */
+#define make_default_arg_handler(function, ThisRetType, ...)                   \
+  struct default_arg_handler(function) {                                       \
+  private:                                                                     \
+    template <typename... Args> struct Config {                                \
+      static constexpr int begin() { return 0; }                               \
+      static constexpr int end() { return sizeof...(Args); }                   \
+    };                                                                         \
+    make_invocable_tester(function, ThisRetType);                              \
+    _make_type_pack(function, ThisRetType);                                    \
+    make_type_pack_slice(function, ThisRetType, ##__VA_ARGS__);                \
+    make_range(function, ThisRetType, ##__VA_ARGS__);                          \
+                                                                               \
+    using ArgumentPackType = ::cppbind::ArgumentPack;                          \
+    using ConfigType = Config<__VA_ARGS__>;                                    \
+                                                                               \
+  public:                                                                      \
+    static ThisRetType call(ArgumentPackType &pack) {                          \
+      if (pack.size() == 0) {                                                  \
+        return TypePack<>::call_packed(pack);                                  \
+      }                                                                        \
+      Range<ConfigType::begin(), ConfigType::end(), ##__VA_ARGS__> rng;        \
+      return rng(pack);                                                        \
+    }                                                                          \
+  }
+
+#define gen_default_arg_builtin_function(cpp_function, RetType, ...)           \
+  [](PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {  \
+    default_arg_handler(cpp_function) handler;                                 \
+    try {                                                                      \
+      return ::cppbind::fastcall_and_into<RetType>(                            \
+          [](PyObject *, PyObject *const *args, Py_ssize_t nargs) -> RetType { \
+            return handler.call(::cppbind::PyVecCallArgPack(args, nargs));     \
+          },                                                                   \
+          args, nargs);                                                        \
+    } catch (::std::exception & ex) {                                          \
+      ::cppbind::PyErr_from_cpp_exception(ex);                                 \
+      return nullptr;                                                          \
+    }                                                                          \
+  }
+
+/**
+ * Generate a `PyMethodDef` for a C++ function with default arguments.
+ *
+ * <h3>Note of dealing with namespaces</h3>
+ * Consider the function `mypkg::add` below:
+ * <blockquote><pre>
+ *   namespace mypkg { long add2(long a, long b = 42); }
+ * </pre></blockquote>
+ *
+ * To make it callable as `def add2(a: int, b: int = 42)` in python3,
+ * one should do:
+ * <blockquote><pre>
+ *   namespace mypkg { make_default_arg_handler(add2, long, long, long); }
+ *
+ *   // make the helper class "escape" from the namespace.
+ *   using mypkg :: default_arg_handler(add2);
+ *   gen_default_arg_builtin_function_def(add2,
+ *       "add two numbers", long, long, long);
+ * </pre></blockquote>
+ */
+#define gen_default_arg_builtin_function_def(cpp_function, func_doc, RetType,  \
+                                             ...)                              \
+  {                                                                            \
+    #cpp_function,                                                             \
+        (PyCFunction)(PyCFunctionVec)(gen_default_arg_builtin_function(        \
+            cpp_function, RetType, ##__VA_ARGS__)),                            \
+        METH_FASTCALL, func_doc                                                \
+  }
+
 } /* namespace cppbind */
 
 #endif /* __PACKAGE_INVOKE_H__ */
