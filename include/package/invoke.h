@@ -334,6 +334,12 @@ inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
 #define default_arg_handler(name) DefaultArgHandlerF##name
 
 /**
+ * Naming conventions for a default argument handler
+ * for method `method` of class `cpp_class`.
+ */
+#define method_default_arg_handler(cpp_class, method) DefaultArgHandlerF##method
+
+/**
  * For cppbind internal use only.
  *
  * Given a C++ function, e.g.
@@ -568,6 +574,118 @@ inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
         (PyCFunction)(PyCFunctionVec)(gen_default_arg_builtin_function(        \
             cpp_function, RetType, ##__VA_ARGS__)),                            \
         METH_FASTCALL, func_doc                                                \
+  }
+
+/**
+ * It is used to do preparation for binding a C++ method, by generating
+ * a helper class named `make_default_arg_handler(function)`.
+ *
+ * `py_method` is an alias to method -- unique for the C++ class,
+ * so we use it to generate the name of the helper class.
+ */
+#define make_method_default_arg_handler(cpp_class, method, py_method,          \
+                                        ThisRetType, ...)                      \
+  struct method_default_arg_handler(cpp_class, py_method) {                    \
+  private:                                                                     \
+    struct InvokeTester {                                                      \
+    private:                                                                   \
+      template <typename... Args> static constexpr bool get_impl(...) {        \
+        return false;                                                          \
+      }                                                                        \
+      template <typename... Args>                                              \
+      static constexpr auto                                                    \
+      get_impl(int) -> decltype(::std::declval<cpp_class>().method(            \
+                                    ::std::declval<Args>()...),                \
+                                false) {                                       \
+        return true;                                                           \
+      }                                                                        \
+                                                                               \
+    public:                                                                    \
+      template <typename... Args> static constexpr bool get() {                \
+        return get_impl<Args...>(0);                                           \
+      }                                                                        \
+      template <typename... Args,                                              \
+                std::__enable_if_t<get<Args...>(), bool> = true>               \
+      static auto call_impl(cpp_class *thisptr, Args... args) -> ThisRetType { \
+        return thisptr->method(args...);                                       \
+      }                                                                        \
+      template <typename... Args,                                              \
+                std::__enable_if_t<!get<Args...>(), bool> = true>              \
+      static auto call_impl(cpp_class *thisptr, Args... args) -> ThisRetType { \
+        abort();                                                               \
+      }                                                                        \
+    };                                                                         \
+                                                                               \
+  private:                                                                     \
+    template <typename... Args> struct TypePack;                               \
+    template <typename... Args1, typename... Args2>                            \
+    TypePack<Args1..., Args2...> static type_pack_cat(TypePack<Args1...>,      \
+                                                      TypePack<Args2...>);     \
+    template <typename T> static TypePack<T> make_type_pack(T);                \
+    template <typename... Args> struct TypePack {                              \
+      TypePack(void);                                                          \
+      using RetType = ThisRetType;                                             \
+      using CallableType = RetType (*)(Args...);                               \
+      static constexpr bool invocable() {                                      \
+        return InvokeTester::get<Args...>();                                   \
+      }                                                                        \
+      static auto call(cpp_class *thisptr, Args... args) -> RetType {          \
+        return InvokeTester::call_impl(thisptr, args...);                      \
+      }                                                                        \
+      static auto call_packed(cpp_class *thisptr,                              \
+                              ::cppbind::ArgumentPack &pack) -> RetType {      \
+        auto wrapper = [thisptr](Args... args) -> RetType {                    \
+          return call(thisptr, args...);                                       \
+        };                                                                     \
+        ::cppbind::NativeCallImpl<0, decltype(wrapper), RetType, Args...>      \
+            impl(wrapper, pack);                                               \
+        return impl.call();                                                    \
+      }                                                                        \
+      static constexpr int size() { return sizeof...(Args); }                  \
+    };                                                                         \
+                                                                               \
+  private:                                                                     \
+    make_type_pack_slice(method, ThisRetType, ##__VA_ARGS__);                  \
+                                                                               \
+  private:                                                                     \
+    template <int Idx, int End, typename... Args> struct Range;                \
+    template <int Idx, int End, typename Head, typename... Args>               \
+    struct Range<Idx, End, Head, Args...> {                                    \
+      using TypePackType =                                                     \
+          decltype(std::declval<TypePackSlice<0, Idx, ##__VA_ARGS__>>()        \
+                       .norm());                                               \
+      static ThisRetType call(cpp_class *thisptr,                              \
+                              ::cppbind::ArgumentPack &pack) {                 \
+        if (Idx + 1 == pack.size()) {                                          \
+          return TypePackType::call_packed(thisptr, pack);                     \
+        }                                                                      \
+        Range<Idx + 1, End, Args...> next_rng;                                 \
+        return next_rng.call(thisptr, pack);                                   \
+      }                                                                        \
+    };                                                                         \
+    template <int End> struct Range<End, End> {                                \
+      static ThisRetType call(cpp_class *thisptr,                              \
+                              ::cppbind::ArgumentPack &pack) {                 \
+        throw std::invalid_argument("argument count mismatch");                \
+      }                                                                        \
+    };                                                                         \
+                                                                               \
+  private:                                                                     \
+    template <typename... Args> struct Config {                                \
+      static constexpr int begin() { return 0; }                               \
+      static constexpr int end() { return sizeof...(Args); }                   \
+    };                                                                         \
+    using ConfigType = Config<__VA_ARGS__>;                                    \
+                                                                               \
+  public:                                                                      \
+    static ThisRetType call(cpp_class *thisptr,                                \
+                            ::cppbind::ArgumentPack &pack) {                   \
+      if (pack.size() == 0) {                                                  \
+        return TypePack<>::call_packed(thisptr, pack);                         \
+      }                                                                        \
+      return Range<ConfigType::begin(), ConfigType::end(),                     \
+                   ##__VA_ARGS__>::call(thisptr, pack);                        \
+    }                                                                          \
   }
 
 } /* namespace cppbind */

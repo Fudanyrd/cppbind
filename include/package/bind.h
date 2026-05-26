@@ -95,6 +95,24 @@ template <> struct CppObject<void> {
   }
 };
 
+#define staticize_default_arg_method(cpp_class, method, py_method, ret_type,   \
+                                     ...)                                      \
+  make_method_default_arg_handler(cpp_class, method, py_method, ret_type,      \
+                                  ##__VA_ARGS__);                              \
+  static ret_type method_raw_##py_method(PyObject *self, PyObject *args,       \
+                                         PyObject *kwargs) {                   \
+    auto tup_args = ::cppbind::Tuple::from_args(args);                         \
+    auto pack = ::cppbind::PyCallArgPack(tup_args);                            \
+    return (method_default_arg_handler(cpp_class, py_method)::call(            \
+        get_payload(self), pack));                                             \
+  }                                                                            \
+  static PyObject *method_##py_method(PyObject *self, PyObject *args,          \
+                                      PyObject *kwargs) {                      \
+    auto *ret = call_method_and_into<ret_type>(self, args, kwargs,             \
+                                               &method_raw_##py_method);       \
+    return ret;                                                                \
+  }
+
 /**
  * Staticize a method of a C++ class. It will generate a wrapper function that
  * can be called from Python. We use a `py_method` to create alias,
@@ -130,6 +148,11 @@ template <> struct CppObject<void> {
                                                &method_raw_##py_method);       \
     return ret;                                                                \
   }
+
+#undef staticize_method
+#define staticize_method(cpp_class, method, py_method, ret_type, ...)          \
+  staticize_default_arg_method(cpp_class, method, py_method, ret_type,         \
+                               ##__VA_ARGS__)
 
 /**
  * Staticize a destructor of a C++ class. It will generate a wrapper function
