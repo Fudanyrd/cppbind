@@ -4,6 +4,7 @@
 
 struct Animal {
   virtual const char *make_noise() = 0;
+  virtual ~Animal() = default;
 };
 
 struct Cat final : public Animal {
