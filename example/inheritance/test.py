@@ -1,8 +1,8 @@
 import ext
 
 if __name__ == "__main__":
-    a = ext.Animal()
-    c = ext.Cat()
+    a = ext.make_animal()
+    c = ext.make_cat()
 
     assert c.make_noise() == "meow"
 

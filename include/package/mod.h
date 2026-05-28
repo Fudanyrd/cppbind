@@ -28,6 +28,40 @@ struct Module;
 typedef int (*RestInitFn)(void);
 
 /**
+ * A function pointer type for module initialization functions that
+ * need to access the module object. It should return `0` on succcess; set
+ * python `ImportError` and return non-zero on failure.
+ */
+typedef int (*RestInitFnWithMod)(Module &mod);
+
+/**
+ * Invoke `RestInitFn` or `RestInitFnWithMod` with the given module
+ * object.
+ */
+template <typename FnPtr> struct RestInitFnInvoke {};
+
+/**
+ * Specialization for `RestInitFn`.
+ */
+template <> struct RestInitFnInvoke<RestInitFn> {
+  static int invoke(RestInitFn fn, Module &) { return fn(); }
+};
+
+/**
+ * Specialization for `RestInitFnWithMod`.
+ */
+template <> struct RestInitFnInvoke<RestInitFnWithMod> {
+  static int invoke(RestInitFnWithMod fn, Module &mod) { return fn(mod); }
+};
+
+/**
+ * Specialization for `nullptr`. It does nothing and returns 0.
+ */
+template <> struct RestInitFnInvoke<decltype(nullptr)> {
+  static int invoke(decltype(nullptr), Module &) { return 0; }
+};
+
+/**
  * Test if a function pointer type is `RestInitFn` or `nullptr`.
  */
 template <typename FnPtr> constexpr bool is_restini_fn(void) { return false; }
@@ -36,6 +70,13 @@ template <typename FnPtr> constexpr bool is_restini_fn(void) { return false; }
  * Specialization for `RestInitFn`
  */
 template <> constexpr bool is_restini_fn<RestInitFn>(void) { return true; }
+
+/**
+ * Specialization for `RestInitFnWithMod`.
+ */
+template <> constexpr bool is_restini_fn<RestInitFnWithMod>(void) {
+  return true;
+}
 
 /**
  * Specialization for `nullptr`.
@@ -57,14 +98,15 @@ template <> constexpr bool is_restini_fn<decltype(nullptr)>(void) {
         PyModuleDef_HEAD_INIT, #name,      "",        0, defs, 0,              \
         (traverse_fn),         (clear_fn), (free_fn),                          \
     };                                                                         \
-    if (rest_init_fn != nullptr) {                                             \
-      __static_assert(::cppbind::is_restini_fn<decltype(rest_init_fn)>());     \
-      if ((*(::cppbind::RestInitFn)(rest_init_fn))()) {                        \
-        return nullptr; /* ImportError */                                      \
-      }                                                                        \
+    static ::cppbind::Module modobj(&moddef);                                  \
+    int __result =                                                             \
+        ::cppbind::RestInitFnInvoke<decltype(rest_init_fn)>::invoke(           \
+            rest_init_fn, modobj);                                             \
+    if (__result != 0) {                                                       \
+      /* Module initialization failed. By spec, user has ImportError set. */   \
+      return nullptr;                                                          \
     }                                                                          \
-    PyObject *mod = PyModule_Create(&moddef);                                  \
-    return mod;                                                                \
+    return modobj.ptr();                                                       \
   }
 
 } /* namespace cppbind */

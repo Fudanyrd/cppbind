@@ -20,6 +20,7 @@
 #include "package/func.h"
 #include "package/invoke.h"
 #include "package/mod.h"
+#include "package/modobj.h"
 #include "package/type.h"
 
 #include "cast.h"

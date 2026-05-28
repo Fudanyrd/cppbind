@@ -27,7 +27,7 @@ method_wrapper_static_members_declare(cppbind::MethodTableEntry::method_t);
 type_static_members(cppbind::CppObject<Animal>);
 type_static_members(cppbind::CppObject<Cat>);
 
-static int rest_init() {
+static int rest_init(cppbind::Module &thismod) {
   MethodWrapper_init(this_package, cppbind::MethodTableEntry::method_t);
   cpp_type_init(this_package, Animal, "Animal", foreach_animal_method);
   if (PyType_Ready(cpp_get_type_object(Animal)) != 0) {
@@ -44,6 +44,9 @@ static int rest_init() {
   if (PyType_Ready(cpp_get_type_object(Cat)) != 0) {
     return 1;
   }
+
+  add_cpp_type(thismod, Animal, "Animal");
+  add_cpp_type(thismod, Cat, "Cat");
   return 0;
 }
 
@@ -54,9 +57,9 @@ static int rest_init() {
  * here.
  */
 gen_modinit_fn_from_fns(ext, &rest_init, nullptr, nullptr, nullptr,
-                        {"Cat",
+                        {"make_cat",
                          (PyCFunction)cppbind::staticize_constructor<Cat>,
                          METH_FASTCALL, "Create a Cat object."},
-                        {"Animal",
+                        {"make_animal",
                          (PyCFunction)cppbind::staticize_constructor<Animal>,
                          METH_FASTCALL, "Create an Animal object."});
