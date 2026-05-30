@@ -124,7 +124,11 @@ type_static_members(cppbind::CppObject<cppbind::pyvec_t>);
 type_static_members(cppbind::CppObject<cppbind::STLIterator<cppbind::pyvec_t>>);
 type_static_members(cppbind::CppObject<cppbind::Point2D>);
 
-static int rest_init() {
+enum Color : unsigned int { RED, GREEN, BLUE };
+
+enum_type_static_members(Color);
+
+static int rest_init(cppbind::Module &curmod) {
   MethodWrapper_init(this_package, cppbind::MethodTableEntry::method_t);
   stl_type_init(this_package, cppbind::pymap_t, "map", std_map_foreach_method);
   stl_type_init_mapping(cppbind::pymap_t);
@@ -142,6 +146,13 @@ static int rest_init() {
   cpp_type_init_number(cppbind::Point2D);
   cpp_type_init_data_members(cppbind::Point2D, point_2d_members);
 #undef point_2d_members
+
+#define foreach_color(X) X(RED) X(GREEN) X(BLUE)
+  enum_type_init(this_package, Color, "Color", foreach_color);
+  auto *color_instance =
+      PyObject_New(PyObject, ::cppbind::EnumObject<Color>::instance);
+  curmod.add_object("Color", color_instance);
+  Py_DECREF(color_instance);
   return 0;
 }
 

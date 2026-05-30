@@ -57,6 +57,11 @@ template <typename CppClass> struct CppObject {
   static PyTypeObject *py_type() {
     return cppbind::Type<CppObject<CppClass>>::instance;
   }
+
+  /**
+   * Default destructor.
+   */
+  static void del(PyObject *) {}
 };
 
 /**
@@ -93,6 +98,11 @@ template <> struct CppObject<void> {
   static PyTypeObject *py_type() {
     return reinterpret_cast<PyTypeObject *>(Py_NewRef(Py_None->ob_type));
   }
+
+  /**
+   * Default destructor.
+   */
+  static void del(PyObject *) {}
 };
 
 #define staticize_default_arg_method(cpp_class, method, py_method, ret_type,   \

@@ -72,10 +72,23 @@ def test_point2d():
         print(ex)
 
 
+def test_enum():
+    color = cxxstd.Color
+    r = color.RED
+    assert str(r) == "RED"
+    assert isinstance(r.value, int)
+    assert r.value == 0
+    assert isinstance(r.name, str)
+
+    g = color.GREEN
+    assert g > r # should be able to compare enum values
+
+
 if __name__ == "__main__":
     test_cint()
     test_map()
     test_vector()
     test_point2d()
+    test_enum()
     del rc
     del cxxstd

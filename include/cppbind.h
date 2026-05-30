@@ -23,6 +23,8 @@
 #include "package/modobj.h"
 #include "package/type.h"
 
+#include "package/enum.h"
+
 #include "cast.h"
 #include "stl.h"
 
