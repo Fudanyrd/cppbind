@@ -192,8 +192,8 @@ template <typename EnumType>
 PyObject *EnumObject<EnumType>::getattr(PyObject *, char *name) {
   auto it = std::lower_bound(
       values, values + values_cnt, EnumValue(name, values[0].value),
-      [](const EnumValue *a, const EnumValue &b) -> bool {
-        return strcmp(a->name, b.name) < 0;
+      [](const EnumValue &a, const EnumValue &b) -> bool {
+        return strcmp(a.name, b.name) < 0;
       });
   if (it != values + values_cnt && strcmp(it->name, name) == 0) {
     return into_impl(*it).unwrap();
@@ -208,23 +208,23 @@ PyObject *EnumObject<EnumType>::getattr(PyObject *, char *name) {
 
 #define enum_type_static_members(enum_class)                                   \
   template <>                                                                  \
-  PyTypeObject * ::cppbind::EnumObject<enum_class>::instance = nullptr;        \
+  PyTypeObject *cppbind::EnumObject<enum_class>::instance = nullptr;           \
   template <>                                                                  \
-  ::cppbind::EnumObject<enum_class>::EnumValue                                 \
-      * ::cppbind::EnumObject<enum_class>::values = nullptr;                   \
-  template <> Py_ssize_t ::cppbind::EnumObject<enum_class>::values_cnt = 0;    \
+  cppbind::EnumObject<enum_class>::EnumValue                                   \
+      *cppbind::EnumObject<enum_class>::values = nullptr;                      \
+  template <> Py_ssize_t cppbind::EnumObject<enum_class>::values_cnt = 0;      \
   enum_value_static_members(enum_class)
 
 #define enum_type_static_members_declare(enum_class)                           \
   template <>                                                                  \
-  ::cppbind::Object ::cppbind::into<                                           \
+  cppbind::Object ::cppbind::into<                                             \
       ::cppbind::EnumObject<enum_class>::EnumValue>(                           \
       ::cppbind::EnumObject<enum_class>::EnumValue value);                     \
-  template <> PyTypeObject * ::cppbind::EnumObject<enum_class>::instance;      \
+  template <> PyTypeObject *cppbind::EnumObject<enum_class>::instance;         \
   template <>                                                                  \
-  ::cppbind::EnumObject<enum_class>::EnumValue                                 \
+  cppbind::EnumObject<enum_class>::EnumValue                                   \
       * ::cppbind::EnumObject<enum_class>::values;                             \
-  template <> Py_ssize_t ::cppbind::EnumObject<enum_class>::values_cnt;        \
+  template <> Py_ssize_t cppbind::EnumObject<enum_class>::values_cnt;          \
   enum_value_static_members_declare(enum_class)
 
 /**
