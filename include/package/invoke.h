@@ -612,7 +612,7 @@ inline PyObject *fastcall_and_into(RetTy (*func)(PyObject *, PyObject *const *,
       template <typename... Args,                                              \
                 std::__enable_if_t<!get<Args...>(), bool> = true>              \
       static auto call_impl(cpp_class *thisptr, Args... args) -> ThisRetType { \
-        abort();                                                               \
+        throw std::invalid_argument("argument count mismatch");                \
       }                                                                        \
     };                                                                         \
                                                                                \
