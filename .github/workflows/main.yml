@@ -48,16 +48,16 @@ jobs:
         run: sudo sh script/ci-init.sh
       - name: Check Formatting
         working-directory: .
-        run: sh script/ci-check-fmt.sh
+        run: ./script/ci-check-fmt.sh
       - name: Run Tests
         working-directory: .
         run: CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}} CXXSTD=${{matrix.config.std}} sh script/ci-test.sh
       - name: Run Clang Tidy
         working-directory: .
-        run: sh script/ci-tidy.sh
+        run: ./script/ci-tidy.sh
       - name: Check Scripts
         working-directory: .
-        run: sh script/ci-lint-sh.sh
+        run: ./script/ci-lint-sh.sh
       - name: Generate Documentation
         working-directory: .
-        run: sh script/docs.sh doxygen
+        run: ./script/docs.sh doxygen
